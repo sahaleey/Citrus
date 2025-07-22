@@ -12,8 +12,16 @@ export const getFoods = async (req, res) => {
 
 // ✅ POST /api/foods
 export const addFood = async (req, res) => {
-  const { name, price, quantityAvailable, offer, image, description, type } =
-    req.body;
+  const {
+    name,
+    price,
+    quantityAvailable,
+    offer,
+    image,
+    description,
+    type,
+    category,
+  } = req.body;
 
   if (
     !name ||
@@ -21,6 +29,7 @@ export const addFood = async (req, res) => {
     !quantityAvailable ||
     !image ||
     !description ||
+    !category ||
     !type
   ) {
     return res.status(400).json({ error: "Missing required food fields" });
@@ -34,6 +43,7 @@ export const addFood = async (req, res) => {
       offer,
       image,
       description,
+      category,
       type,
     });
     res.status(201).json({ message: "Food added successfully", food: newFood });
