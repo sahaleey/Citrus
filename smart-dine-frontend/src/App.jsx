@@ -11,7 +11,7 @@ function App() {
         {/* App Routes */}
         <Routes>
           <Route path="/menu" element={<Menu />} />
-          <Route path="/chief-dashboard" element={<ChiefBoard />} />
+          <Route path="/chef-dashboard" element={<ChiefBoard />} />
           <Route path="/" element={<Navigate to="/menu?table=bench-1" />} />
         </Routes>
       </div>
