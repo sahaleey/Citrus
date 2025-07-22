@@ -56,9 +56,12 @@ const ChiefBoard = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("chefToken");
-      const res = await axios.get("http://localhost:5000/api/orders", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await axios.get(
+        "https://qrcodemenu-y983.onrender.com/api/orders",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       setOrders(res.data);
     } catch (err) {
       console.error("Failed to fetch orders:", err);
@@ -87,7 +90,7 @@ const ChiefBoard = () => {
     try {
       const token = localStorage.getItem("chefToken");
       await axios.patch(
-        `http://localhost:5000/api/orders/${id}`,
+        `https://qrcodemenu-y983.onrender.com/api/orders/${id}`,
         {
           status: newStatus,
         },
@@ -98,9 +101,12 @@ const ChiefBoard = () => {
 
       if (newStatus === "ready") {
         notifyBench(tableId);
-        await axios.delete(`http://localhost:5000/api/orders/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await axios.delete(
+          `https://qrcodemenu-y983.onrender.com/api/orders/${id}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
         toast.success(
           <div className="flex items-center gap-2">
             <FiCheck className="text-green-500" />
@@ -149,9 +155,13 @@ const ChiefBoard = () => {
 
     try {
       const token = localStorage.getItem("chefToken");
-      await axios.post("http://localhost:5000/api/foods", newFood, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await axios.post(
+        "https://qrcodemenu-y983.onrender.com/api/foods",
+        newFood,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       toast.success(
         <div className="flex items-center gap-2">
           <FiCheck className="text-green-500" />
@@ -202,9 +212,12 @@ const ChiefBoard = () => {
   if (!authenticated) {
     const handleLogin = async () => {
       try {
-        const res = await axios.post("http://localhost:5000/api/auth/login", {
-          password: inputPassword,
-        });
+        const res = await axios.post(
+          "https://qrcodemenu-y983.onrender.com/api/auth/login",
+          {
+            password: inputPassword,
+          }
+        );
 
         if (res.data.success) {
           sessionStorage.setItem("chefToken", res.data.token);

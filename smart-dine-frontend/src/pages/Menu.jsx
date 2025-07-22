@@ -24,7 +24,7 @@ const fonts = {
   heading: "'Poppins', sans-serif",
   body: "'Open Sans', sans-serif",
 };
-const socket = io("http://localhost:5000");
+const socket = io("https://qrcodemenu-y983.onrender.com");
 const categories = ["All", "Mains", "Starters", "Desserts", "Drinks"];
 
 const usePendingOrders = () => {
@@ -140,7 +140,9 @@ const Menu = () => {
   const fetchFoods = async () => {
     try {
       setIsLoading(true);
-      const res = await axios.get("http://localhost:5000/api/foods");
+      const res = await axios.get(
+        "https://qrcodemenu-y983.onrender.com/api/foods"
+      );
       setFoods(res.data);
     } catch (err) {
       console.error("Failed to fetch foods:", err);
@@ -279,7 +281,7 @@ const Menu = () => {
 
     try {
       setIsLoading(true);
-      await axios.post("http://localhost:5000/api/orders", {
+      await axios.post("https://qrcodemenu-y983.onrender.com/api/orders", {
         tableId,
         items: cart.map((item) => ({
           foodId: item.foodId,
