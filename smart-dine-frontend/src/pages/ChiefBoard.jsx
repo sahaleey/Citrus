@@ -10,10 +10,10 @@ import {
   FiPlus,
   FiClock,
   FiCheck,
+  FiTag,
   FiLoader,
   FiAlertTriangle,
   FiTrash2,
-  FiTag,
   FiSearch,
   FiLogOut,
 } from "react-icons/fi";
@@ -50,8 +50,8 @@ const STATUS_ICONS = {
   [ORDER_STATUS.READY]: <FaCheckCircle className="text-green-500" />,
 };
 
-const FOOD_CATEGORIES = ["Starters", "Mains", "Desserts", "Drinks", "Specials"];
-const FOOD_TYPES = ["Veg", "Non-Veg", "Vegan", "Gluten-Free"];
+const FOOD_TYPES = ["Starters", "Mains", "Desserts", "Drinks", "Specials"];
+const FOOD_CATEGORIES = ["Veg", "Non-Veg", "Vegan", "Gluten-Free"];
 
 // API Configuration
 const API_BASE_URL = "https://qrcodemenu-y983.onrender.com/api";
@@ -844,15 +844,15 @@ const FoodCard = ({ food, onDelete }) => (
 
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div className="flex items-center gap-1 text-gray-600">
-          {getTypeIcon(food.type)}
-          <span>{food.type}</span>
+          {getTypeIcon(food.category)}
+          <span>{food.category}</span>
         </div>
         <div className="text-right font-medium text-orange-600">
           ₹{food.price}
         </div>
         <div className="flex items-center gap-1 text-gray-600">
           <FiTag />
-          <span>{food.category || "Uncategorized"}</span>
+          <span>{food.type || "Uncategorized"}</span>
         </div>
         <div className="text-right">
           <span

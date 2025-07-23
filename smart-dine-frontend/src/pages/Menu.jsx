@@ -18,6 +18,20 @@ const colors = {
   light: "#FFFFFF",
   dark: "#2D3436",
 };
+const getTypeColor = (category) => {
+  switch (category) {
+    case "Veg":
+      return "#4CAF50"; // green
+    case "Non-Veg":
+      return "#E53935"; // red
+    case "Drink":
+      return "#039BE5"; // blue
+    case "Dessert":
+      return "#F48FB1"; // pink
+    default:
+      return colors.warning; // fallback color
+  }
+};
 
 // Font settings
 const fonts = {
@@ -843,6 +857,50 @@ const Menu = () => {
                           }}
                         >
                           {food.offer}
+                        </div>
+                      )}
+
+                      {/* Category Tag (Veg / Non-Veg) */}
+                      {food.category && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: "12px",
+                            left: "12px",
+                            background:
+                              food.category === "Veg" ? "#e0f7ec" : "#fdecea",
+                            color:
+                              food.category === "Veg" ? "#27ae60" : "#e74c3c",
+                            padding: "4px 10px",
+                            borderRadius: "9999px",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            textTransform: "uppercase",
+                            boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
+                          }}
+                        >
+                          {food.category}
+                        </div>
+                      )}
+
+                      {/* Type Tag (Starters / Desserts...) */}
+                      {food.type && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: "12px",
+                            right: "12px",
+                            background: "#f0f0f0",
+                            color: "#555",
+                            padding: "4px 10px",
+                            borderRadius: "9999px",
+                            fontSize: "12px",
+                            fontWeight: "500",
+                            textTransform: "capitalize",
+                            boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
+                          }}
+                        >
+                          {food.type}
                         </div>
                       )}
                     </div>
