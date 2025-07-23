@@ -18,20 +18,6 @@ const colors = {
   light: "#FFFFFF",
   dark: "#2D3436",
 };
-const getTypeColor = (category) => {
-  switch (category) {
-    case "Veg":
-      return "#4CAF50"; // green
-    case "Non-Veg":
-      return "#E53935"; // red
-    case "Drink":
-      return "#039BE5"; // blue
-    case "Dessert":
-      return "#F48FB1"; // pink
-    default:
-      return colors.warning; // fallback color
-  }
-};
 
 // Font settings
 const fonts = {
@@ -39,7 +25,14 @@ const fonts = {
   body: "'Open Sans', sans-serif",
 };
 const socket = io("https://qrcodemenu-y983.onrender.com");
-const categories = ["All", "Mains", "Starters", "Desserts", "Drinks"];
+const categories = [
+  "All",
+  "Mains",
+  "Starters",
+  "Desserts",
+  "Drinks",
+  "Specials",
+];
 
 const usePendingOrders = () => {
   const [pendingOrders, setPendingOrders] = useState([]);

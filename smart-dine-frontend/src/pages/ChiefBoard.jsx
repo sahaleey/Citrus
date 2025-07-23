@@ -1,4 +1,3 @@
-// src/components/chef/ChiefDashboard.jsx
 import React, { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
