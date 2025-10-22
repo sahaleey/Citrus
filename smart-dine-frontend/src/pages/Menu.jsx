@@ -5,6 +5,7 @@ import axios from "axios";
 import FeaturedSlider from "../components/FeaturedSlider";
 import { useSearchParams } from "react-router-dom";
 import { io } from "socket.io-client";
+import { getGuestId } from "../utils/guest";
 
 // Modern color theme with better contrast
 const colors = {
@@ -139,10 +140,25 @@ const Menu = () => {
   const [selectedFood, setSelectedFood] = useState(null);
   const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
+  const [tableId, setTableId] = useState("");
+  const [guestId, setGuestId] = useState("");
 
   const { pendingOrders, addPendingOrder, cancelPendingOrder } =
     usePendingOrders();
-  const tableId = searchParams.get("table");
+
+  // ✅ Fix: no redeclaration of tableId
+  useEffect(() => {
+    const table = searchParams.get("table");
+    if (!table) {
+      toast.error("No table ID found in QR!");
+      return;
+    }
+
+    setTableId(table);
+
+    const id = getGuestId(); // 👈 you should have a function like this
+    setGuestId(id);
+  }, []);
 
   const fetchFoods = async () => {
     try {
@@ -163,6 +179,10 @@ const Menu = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchFoods();
+  }, []);
 
   // Welcome effect and sample item suggestion
   useEffect(() => {
@@ -233,7 +253,7 @@ const Menu = () => {
 
   const addToCart = useCallback(
     (food) => {
-      addPendingOrder(food);
+      addPendingOrder(food); // Starts the 2-minute confirmation
 
       const timeoutId = setTimeout(() => {
         setCart((prev) => {
@@ -246,19 +266,9 @@ const Menu = () => {
               )
             : [...prev, { foodId: food._id, quantity: 1, name: food.name }];
 
-          if (!existingItem) {
-            toast.success(`${food.name} added to cart!`, {
-              icon: "🛒",
-              style: {
-                background: colors.success,
-                color: colors.light,
-              },
-            });
-          }
-
           return updatedCart;
         });
-      }, 120000);
+      }, 120000); // 2 minutes
 
       return () => clearTimeout(timeoutId);
     },
@@ -266,8 +276,8 @@ const Menu = () => {
   );
 
   const placeOrder = async () => {
-    if (!tableId) {
-      toast.error("Please specify your table number!", {
+    if (!tableId || !guestId) {
+      toast.error("Table or guest ID is missing!", {
         style: {
           background: colors.warning,
           color: colors.light,
@@ -288,8 +298,10 @@ const Menu = () => {
 
     try {
       setIsLoading(true);
+
       await axios.post("https://qrcodemenu-y983.onrender.com/api/orders", {
         tableId,
+        guestId,
         items: cart.map((item) => ({
           foodId: item.foodId,
           quantity: item.quantity,

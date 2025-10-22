@@ -4,6 +4,8 @@ import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import jsPDF from "jspdf";
+
 import {
   FiLock,
   FiPlus,
@@ -156,24 +158,57 @@ const ChiefDashboard = () => {
   }, []);
 
   // Order Status Update
-  const updateOrderStatus = async (orderId, currentStatus, tableId) => {
+  const updateOrderStatus = async (order) => {
+    const currentStatus = order.status;
     const nextStatus = STATUS_FLOW[STATUS_FLOW.indexOf(currentStatus) + 1];
     if (!nextStatus) return;
 
     try {
       const token = localStorage.getItem("chefToken");
+
+      // 1. Patch status first
       await axiosInstance.patch(
-        `/orders/${orderId}`,
+        `/orders/${order._id}`,
         { status: nextStatus },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (nextStatus === ORDER_STATUS.READY) {
-        notifyTable(tableId);
-        await axiosInstance.delete(`/orders/${orderId}`, {
+        // 2. Generate Bill PDF using existing `order` object
+        const doc = new jsPDF();
+        doc.setFontSize(16);
+        doc.text(`Bill for Table ${order.tableId}`, 20, 20);
+        doc.setFontSize(12);
+        doc.text(
+          `Date: ${dayjs(order.createdAt).format("DD MMM YYYY, hh:mm A")}`,
+          20,
+          30
+        );
+
+        let y = 50;
+        let total = 0;
+
+        order.items.forEach((item, index) => {
+          const name = item.foodId?.name || "Item";
+          const qty = item.quantity;
+          const price = item.foodId?.price || 0;
+          const lineTotal = qty * price;
+          total += lineTotal;
+
+          doc.text(`${index + 1}. ${name} × ${qty} - ₹${lineTotal}`, 20, y);
+          y += 10;
+        });
+
+        doc.text(`Total: ₹${total}`, 20, y + 10);
+        doc.save(`Bill_Table_${order.tableId}.pdf`);
+
+        // 3. Notify and delete
+        notifyTable(order.tableId);
+        await axiosInstance.delete(`/orders/${order._id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        toast.success("Order completed and removed!");
+
+        toast.success("Order marked ready and bill generated!");
       } else {
         toast.success(`Order marked as ${nextStatus}`);
       }
@@ -552,9 +587,7 @@ const OrderCard = ({ order, onStatusUpdate }) => (
         </span>
         {order.status !== ORDER_STATUS.READY && (
           <button
-            onClick={() =>
-              onStatusUpdate(order._id, order.status, order.tableId)
-            }
+            onClick={() => onStatusUpdate(order)}
             className={`px-3 py-1.5 text-sm font-medium rounded-full flex items-center gap-1 transition ${
               order.status === ORDER_STATUS.PENDING
                 ? "bg-orange-500 hover:bg-orange-600 text-white"
