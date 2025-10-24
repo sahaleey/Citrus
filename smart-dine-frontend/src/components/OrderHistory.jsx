@@ -8,7 +8,8 @@ import { generateBillPDF } from "../utils/BillGenerator";
 
 dayjs.extend(relativeTime);
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_URL =
+  import.meta.env.VITE_API_URL || "https://citrus-c209.onrender.com/api";
 
 // Status badge helper
 const getStatusBadge = (status) => {

@@ -7,7 +7,7 @@ import { VitePWA } from "vite-plugin-pwa";
 export default defineConfig({
   server: {
     proxy: {
-      "/api": "http://localhost:5000",
+      "/api": "https://citrus-c209.onrender.com",
     },
   },
   plugins: [

@@ -30,7 +30,7 @@ import {
 
 // --- Socket.io setup ---
 // We use a relative path, which will work with our proxy
-const socket = io("http://localhost:5000", { path: "/socket.io" });
+const socket = io("https://citrus-c209.onrender.com", { path: "/socket.io" });
 
 // Extend dayjs with relative time plugin
 dayjs.extend(relativeTime);
