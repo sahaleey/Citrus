@@ -7,8 +7,11 @@ const foodSchema = new mongoose.Schema({
   description: { type: String, required: true },
   type: { type: String, required: true },
   category: { type: String, required: true },
-  offer: { type: String }, // optional
+  offer: { type: String },
   image: { type: String, required: true },
+
+  // 👇 new field
+  totalSold: { type: Number, default: 0 },
 });
 
 export default mongoose.models.Food || mongoose.model("Food", foodSchema);

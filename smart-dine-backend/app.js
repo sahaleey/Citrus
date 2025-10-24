@@ -5,6 +5,7 @@ import cors from "cors";
 import foodRoutes from "./routes/foodRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import authRoutes from "./routes/auth.js";
+import analyticsRoutes from "./routes/analyticsRoutes.js";
 
 import http from "http";
 import { Server } from "socket.io";
@@ -22,6 +23,7 @@ app.use(express.json());
 app.use("/api/foods", foodRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
 // Create HTTP server
 const server = http.createServer(app);

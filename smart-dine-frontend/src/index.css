@@ -1,1 +1,25 @@
 @import "tailwindcss";
+:root {
+  --primary-color: #399c6c; /* The star */
+  --primary-color-light: #5dbd8b; /* A lighter shade for hover/accents */
+  --primary-color-dark: #2a7a51; /* A darker shade for active states/borders */
+  --background-color: #f8f9fa; /* Slightly off-white for a softer look */
+  --surface-color: #ffffff; /* For cards, modals etc. */
+  --text-color: #212529; /* Dark grey for readability */
+  --text-color-secondary: #6c757d; /* Lighter grey for secondary text */
+  --text-on-primary: #ffffff; /* White text on the green background */
+  --border-color: #dee2e6; /* Subtle borders */
+  --border-radius: 0.375rem; /* ~6px rounded corners */
+  --box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -2px rgba(0, 0, 0, 0.1); /* Soft shadow for depth */
+}
+
+body {
+  margin: 0;
+  font-family: "Poppins", sans-serif; /* Make sure to import Poppins or your chosen font */
+  background-color: var(--background-color);
+  color: var(--text-color);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-smoothing: grayscale;
+  line-height: 1.6; /* Improve text spacing */
+}
