@@ -6,7 +6,7 @@ import foodRoutes from "./routes/foodRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import authRoutes from "./routes/auth.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
-import safeSeed from "./safeSeed.js";
+import { safeSeed } from "./safeSeed.js";
 
 import http from "http";
 import { Server } from "socket.io";

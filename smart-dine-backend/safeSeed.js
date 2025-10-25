@@ -4,21 +4,13 @@ import "dotenv/config";
 import User from "./models/User.js";
 
 const usersToSeed = [
-  {
-    email: "admin@citrus.com",
-    password: "password123",
-    role: "admin",
-  },
-  {
-    email: "chef@citrus.com",
-    password: "password123",
-    role: "chef",
-  },
+  { email: "admin@citrus.com", password: "password123", role: "admin" },
+  { email: "chef@citrus.com", password: "password123", role: "chef" },
 ];
 
 const MONGO_URI = process.env.MANGODB_URI;
 
-const importData = async () => {
+export const safeSeed = async () => {
   try {
     await mongoose.connect(MONGO_URI);
     console.log("✅ Connected to MongoDB...");
@@ -39,12 +31,8 @@ const importData = async () => {
     console.log("Admin: admin@citrus.com / password123");
     console.log("Chef:  chef@citrus.com / password123");
     console.log("----------------------------------");
-
-    process.exit(0);
   } catch (error) {
     console.error(`❌ Error seeding data: ${error.message}`);
-    process.exit(1);
+    throw error; // don't exit the process
   }
 };
-
-importData();
