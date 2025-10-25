@@ -19,7 +19,7 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(
   cors({
-    origin: ["https://citrus-jucery.vercel.app", "http://localhost:5173"],
+    origin: ["https://citrus-juicerie.vercel.app", "http://localhost:5173"],
   })
 );
 app.use(express.json());
