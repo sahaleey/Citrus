@@ -6,7 +6,7 @@ import foodRoutes from "./routes/foodRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import authRoutes from "./routes/auth.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
-import { safeSeed } from "./safeSeed.js";
+// import { safeSeed } from "./safeSeed.js";
 
 import http from "http";
 import { Server } from "socket.io";
@@ -20,6 +20,7 @@ const PORT = process.env.PORT || 5000;
 app.use(
   cors({
     origin: ["https://citrus-juicerie.vercel.app", "http://localhost:5173"],
+    credentials: true,
   })
 );
 app.use(express.json());
@@ -29,20 +30,20 @@ app.use("/api/foods", foodRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/analytics", analyticsRoutes);
-app.get("/run-safe-seed", async (req, res) => {
-  try {
-    const token = req.headers["x-safe-seed-token"];
-    if (!token || token !== process.env.SAFE_SEED_TOKEN) {
-      return res.status(403).send("Forbidden");
-    }
+// app.get("/run-safe-seed", async (req, res) => {
+//   try {
+//     const token = req.headers["x-safe-seed-token"];
+//     if (!token || token !== process.env.SAFE_SEED_TOKEN) {
+//       return res.status(403).send("Forbidden");
+//     }
 
-    await safeSeed(); // called only when route hits
-    return res.send("Seeding completed");
-  } catch (err) {
-    console.error("Seed error:", err);
-    return res.status(500).send(err.message || "Seeding failed");
-  }
-});
+//     await safeSeed(); // called only when route hits
+//     return res.send("Seeding completed");
+//   } catch (err) {
+//     console.error("Seed error:", err);
+//     return res.status(500).send(err.message || "Seeding failed");
+//   }
+// });
 
 // Create HTTP server
 const server = http.createServer(app);
@@ -50,7 +51,7 @@ const server = http.createServer(app);
 // Setup Socket.io
 const io = new Server(server, {
   cors: {
-    origin: "*", // ⚠️ allow all during dev — tighten this in prod
+    origin: ["https://citrus-juicerie.vercel.app", "http://localhost:5173"],
     methods: ["GET", "POST"],
   },
 });
