@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
-import jwtDecode from "jwt-decode"; // fixed import
+const jwtDecode = (await import("jwt-decode")).default;
+
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
