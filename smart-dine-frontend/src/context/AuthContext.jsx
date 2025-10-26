@@ -1,14 +1,11 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
-const { default: jwtDecode } = await import("jwt-decode");
-// fixed import
+import jwtDecode from "jwt-decode";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
-// Create the context
 const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
 
-// Get the base URL from Vite env or default to empty string
 const BASE_URL = "https://citrus-c209.onrender.com";
 
 export const AuthProvider = ({ children }) => {
@@ -16,22 +13,27 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Check localStorage token on load
+  // Initialize from localStorage
   useEffect(() => {
-    const token = localStorage.getItem("citrus_token");
+    const adminToken = localStorage.getItem("adminToken");
+    const chefToken = localStorage.getItem("chefToken");
+
+    let token = adminToken || chefToken;
     if (token) {
       try {
         const decoded = jwtDecode(token);
         if (decoded.exp * 1000 < Date.now()) {
           console.log("Token expired, logging out.");
-          localStorage.removeItem("citrus_token");
+          localStorage.removeItem("adminToken");
+          localStorage.removeItem("chefToken");
           setUser(null);
         } else {
           setUser({ id: decoded.id, role: decoded.role, token });
         }
       } catch (err) {
         console.error("Invalid token in localStorage", err);
-        localStorage.removeItem("citrus_token");
+        localStorage.removeItem("adminToken");
+        localStorage.removeItem("chefToken");
         setUser(null);
       }
     }
@@ -55,15 +57,25 @@ export const AuthProvider = ({ children }) => {
           role: decoded.role,
           token: data.token,
         };
-        setUser(userData);
-        localStorage.setItem("citrus_token", data.token);
 
-        // Redirect based on role
-        if (userData.role === "admin") navigate("/owner-dashboard");
-        else if (userData.role === "chef") navigate("/chef-dashboard");
-        else navigate("/menu");
+        setUser(userData);
+
+        // Save token to correct localStorage key
+        if (userData.role === "admin") {
+          localStorage.setItem("adminToken", data.token);
+          localStorage.removeItem("chefToken"); // optional cleanup
+          navigate("/owner-dashboard");
+        } else if (userData.role === "chef") {
+          localStorage.setItem("chefToken", data.token);
+          localStorage.removeItem("adminToken"); // optional cleanup
+          navigate("/chef-dashboard");
+        } else {
+          navigate("/menu");
+        }
 
         return { success: true };
+      } else {
+        return { success: false, message: "Login failed" };
       }
     } catch (err) {
       console.error("Login failed:", err);
@@ -77,7 +89,8 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("citrus_token");
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("chefToken");
     navigate("/login");
   };
 

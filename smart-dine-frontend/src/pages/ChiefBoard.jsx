@@ -143,9 +143,12 @@ const ChiefDashboard = () => {
 
   // Auth + Socket setup
   useEffect(() => {
-    const token =
+    const chefToken =
       typeof window !== "undefined" ? localStorage.getItem("chefToken") : null;
-    if (token) {
+    const adminToken =
+      typeof window !== "undefined" ? localStorage.getItem("adminToken") : null;
+
+    if (chefToken || adminToken) {
       setAuthenticated(true);
       fetchData();
     } else {
