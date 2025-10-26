@@ -112,7 +112,7 @@ const ChiefDashboard = () => {
   // --- API Call Function ---
   // Use a relative path '/api' to leverage the Vite proxy
   const api = axios.create({
-    baseURL: "/api",
+    baseURL: "https://citrus-c209.onrender.com/api",
     headers: {
       Authorization: `Bearer ${localStorage.getItem("chefToken")}`,
     },
@@ -291,7 +291,7 @@ const ChiefDashboard = () => {
 
   // --- Main Render ---
   return (
-    <div className="min-h-screen bg-[var(--background-color)] text-[var(--text-color)]">
+    <div className="min-h-screen bg-var(--background-color) text-var(--text-color)">
       <Toaster position="top-right" />
       <DashboardHeader activeTab={activeTab} onTabChange={setActiveTab} />
 

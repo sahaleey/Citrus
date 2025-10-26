@@ -2,7 +2,7 @@ import axios from "axios";
 
 // 1. Create a global API instance
 const api = axios.create({
-  baseURL: "/api", // This will use the Vite proxy
+  baseURL: "https://citrus-c209.onrender.com/api", // This will use the Vite proxy
 });
 
 // 2. Create an "interceptor" (a helper that runs before every request)
