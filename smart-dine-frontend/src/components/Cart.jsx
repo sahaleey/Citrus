@@ -47,15 +47,18 @@ const Cart = ({
       tableId,
       guestId,
       totalPrice,
-      items: cart.map((item) => {
-        const foodItem = foods.find((f) => f._id === item.foodId);
-        return {
-          food: item.foodId,
-          name: item.name || foodItem?.name,
-          price: item.price || foodItem?.price,
-          quantity: item.quantity,
-        };
-      }),
+      items: cart
+        .map((item) => {
+          const foodItem = foods.find((f) => f._id === item.foodId);
+          if (!foodItem) return null;
+          return {
+            food: foodItem._id,
+            name: foodItem.name,
+            price: foodItem.price,
+            quantity: item.quantity,
+          };
+        })
+        .filter(Boolean),
     };
 
     try {
