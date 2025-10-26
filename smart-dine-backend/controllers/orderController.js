@@ -13,7 +13,7 @@ export const placeOrder = async (req, res) => {
 
   // Ensure all items have valid food ObjectId
   const sanitizedItems = items.map((item) => ({
-    food: item.food || null,
+    food: item.food || item._id || item.foodId || null,
     name: item.name || "Unnamed food",
     price: item.price || 0,
     quantity: item.quantity || 1,
