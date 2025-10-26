@@ -1,5 +1,5 @@
-import React from "react";
-import { NavLink, Link, useLocation, useSearchParams } from "react-router-dom";
+import React, { useState } from "react";
+import { NavLink, Link, useSearchParams } from "react-router-dom";
 import {
   Citrus,
   LogOut,
@@ -7,6 +7,8 @@ import {
   ChefHat,
   LayoutDashboard,
   Utensils,
+  Menu as MenuIcon,
+  X as CloseIcon,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -20,13 +22,81 @@ const navLinkClass = ({ isActive }) =>
 
 const Header = () => {
   const { user, logout } = useAuth();
-
-  // Get current table from URL query
   const [searchParams] = useSearchParams();
   const tableId = searchParams.get("table") || "default-1";
-
-  // Construct menu link preserving table
   const menuLink = `/menu?table=${tableId}`;
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const handleLogout = () => {
+    setIsMenuOpen(false);
+    logout();
+  };
+
+  // Close mobile menu when clicking a nav link
+  const closeMenu = () => setIsMenuOpen(false);
+
+  // Determine which nav items to show
+  const renderNavLinks = () => {
+    if (!user) return null;
+
+    if (user.role === "admin") {
+      return (
+        <>
+          <NavLink
+            to={menuLink}
+            className={navLinkClass}
+            end
+            onClick={closeMenu}
+          >
+            <Utensils size={16} />
+            <span>Menu</span>
+          </NavLink>
+          <NavLink
+            to="/chef-dashboard"
+            className={navLinkClass}
+            onClick={closeMenu}
+          >
+            <ChefHat size={16} />
+            <span>Chef View</span>
+          </NavLink>
+          <NavLink
+            to="/owner-dashboard"
+            className={navLinkClass}
+            onClick={closeMenu}
+          >
+            <LayoutDashboard size={16} />
+            <span>Owner View</span>
+          </NavLink>
+        </>
+      );
+    }
+
+    if (user.role === "chef") {
+      return (
+        <>
+          <NavLink
+            to={menuLink}
+            className={navLinkClass}
+            end
+            onClick={closeMenu}
+          >
+            <Utensils size={16} />
+            <span>Menu</span>
+          </NavLink>
+          <NavLink
+            to="/chef-dashboard"
+            className={navLinkClass}
+            onClick={closeMenu}
+          >
+            <ChefHat size={16} />
+            <span>Chef View</span>
+          </NavLink>
+        </>
+      );
+    }
+
+    return null;
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-[var(--border-color)] bg-[var(--surface-color)] shadow-sm">
@@ -35,50 +105,17 @@ const Header = () => {
         <div className="flex items-center gap-2" aria-label="Home">
           <img
             src="/images/logo.jpg"
-            alt=""
-            srcset=""
-            className="max-sm:size-10 size-15 rounded-4xl border border-[var(--border-color)] object-cover"
+            alt="Citrus Logo"
+            className="size-10 rounded-2xl border border-[var(--border-color)] object-cover sm:size-12 md:size-15"
           />
-          <span className="text-2xl font-bold text-[var(--text-color)]">
+          <span className="text-xl font-bold text-[var(--text-color)] sm:text-2xl">
             Citrus
           </span>
         </div>
 
-        {/* Role-Based Navigation */}
-        <nav className="flex items-center gap-2">
-          {/* --- ADMIN LINKS --- */}
-          {user && user.role === "admin" && (
-            <>
-              <NavLink to={menuLink} className={navLinkClass} end>
-                <Utensils size={16} />
-                <span>Menu</span>
-              </NavLink>
-              <NavLink to="/chef-dashboard" className={navLinkClass}>
-                <ChefHat size={16} />
-                <span>Chef View</span>
-              </NavLink>
-              <NavLink to="/owner-dashboard" className={navLinkClass}>
-                <LayoutDashboard size={16} />
-                <span>Owner View</span>
-              </NavLink>
-            </>
-          )}
-
-          {/* --- CHEF LINKS --- */}
-          {user && user.role === "chef" && (
-            <>
-              <NavLink to={menuLink} className={navLinkClass} end>
-                <Utensils size={16} />
-                <span>Menu</span>
-              </NavLink>
-              <NavLink to="/chef-dashboard" className={navLinkClass}>
-                <ChefHat size={16} />
-                <span>Chef View</span>
-              </NavLink>
-            </>
-          )}
-
-          {/* --- LOGIN/LOGOUT BUTTON --- */}
+        {/* Desktop Navigation (hidden on mobile) */}
+        <nav className="hidden items-center gap-2 md:flex">
+          {renderNavLinks()}
           {user ? (
             <button
               onClick={logout}
@@ -91,14 +128,57 @@ const Header = () => {
             <Link
               to="/login"
               className="flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 text-sm font-medium text-[var(--text-color-secondary)] hover:bg-gray-200"
-              aria-label="Admin/Chef Login"
+              aria-label="Staff Login"
             >
               <User size={16} />
-              <span>Staff Login</span>
+              <span className="max-sm:hidden">Staff Login</span>
             </Link>
           )}
         </nav>
+
+        {/* Mobile Menu Button */}
+        <button
+          className="md:hidden"
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          aria-expanded={isMenuOpen}
+          aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+        >
+          {isMenuOpen ? (
+            <CloseIcon size={24} className="text-[var(--text-color)]" />
+          ) : (
+            <MenuIcon size={24} className="text-[var(--text-color)]" />
+          )}
+        </button>
       </div>
+
+      {/* Mobile Navigation Drawer */}
+      {isMenuOpen && (
+        <div className="md:hidden">
+          <div className="border-t border-[var(--border-color)] bg-[var(--surface-color)] px-4 py-3">
+            <nav className="flex flex-col gap-2">
+              {renderNavLinks()}
+              {user ? (
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 text-sm font-medium text-[var(--text-color-secondary)] hover:bg-gray-200"
+                >
+                  <LogOut size={16} />
+                  <span>Logout</span>
+                </button>
+              ) : (
+                <Link
+                  to="/login"
+                  className="flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 text-sm font-medium text-[var(--text-color-secondary)] hover:bg-gray-200"
+                  onClick={closeMenu}
+                >
+                  <User size={16} />
+                  <span>Staff Login</span>
+                </Link>
+              )}
+            </nav>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

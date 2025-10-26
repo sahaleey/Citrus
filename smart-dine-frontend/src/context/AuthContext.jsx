@@ -9,7 +9,7 @@ const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
 
 // Get the base URL from Vite env or default to empty string
-const BASE_URL = "https://citrus-c209.onrender.com/api";
+const BASE_URL = "https://citrus-c209.onrender.com";
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);

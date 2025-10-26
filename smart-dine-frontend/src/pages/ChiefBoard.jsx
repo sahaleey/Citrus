@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import axios from "../api/axiosConfig";
+import api from "../api/axiosConfig"; // ✅ Centralized, env-aware API client
 import { toast, Toaster } from "react-hot-toast";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import jsPDF from "jspdf";
 import { io } from "socket.io-client";
 import {
   LoaderCircle,
@@ -15,27 +14,18 @@ import {
   Plus,
   Trash2,
   FileText,
-  AlertTriangle,
-  Lock,
-  LogOut,
-  Moon,
-  Sun,
   HardDrive,
-  Eye,
   Salad,
   Flame,
   Cake,
-  Wine, // --- UPDATED --- (Was 'GlassOfWine')
+  Wine,
+  Lock,
 } from "lucide-react";
 
-// --- Socket.io setup ---
-// We use a relative path, which will work with our proxy
-const socket = io("https://citrus-c209.onrender.com", { path: "/socket.io" });
-
-// Extend dayjs with relative time plugin
+// Extend dayjs
 dayjs.extend(relativeTime);
 
-// --- Constants ---
+// Constants
 const ORDER_STATUS = {
   PENDING: "Pending",
   PREPARING: "Preparing",
@@ -50,7 +40,15 @@ const STATUS_FLOW = [
   ORDER_STATUS.READY,
 ];
 
-// --- Helper: Get Status Styles (Tailwind) ---
+// Socket.io (✅ Fixed trailing spaces)
+const socket = io(
+  import.meta.env.VITE_API_URL || "https://citrus-c209.onrender.com/api",
+  {
+    path: "/socket.io",
+  }
+);
+
+// --- Helpers ---
 const getStatusStyles = (status) => {
   switch (status) {
     case ORDER_STATUS.PENDING:
@@ -64,7 +62,6 @@ const getStatusStyles = (status) => {
   }
 };
 
-// --- Helper: Get Status Icon ---
 const StatusIcon = ({ status }) => {
   switch (status) {
     case ORDER_STATUS.PENDING:
@@ -78,7 +75,6 @@ const StatusIcon = ({ status }) => {
   }
 };
 
-// --- Helper: Get Food Type Icon ---
 const FoodTypeIcon = ({ type, category }) => {
   if (category === "Veg") return <Salad size={16} className="text-green-600" />;
   if (category === "Non-Veg")
@@ -92,15 +88,13 @@ const FoodTypeIcon = ({ type, category }) => {
     case "Desserts":
       return <Cake size={16} className="text-pink-600" />;
     case "Drinks":
-      return <Wine size={16} className="text-purple-600" />; // --- UPDATED --- (Was 'GlassOfWine')
+      return <Wine size={16} className="text-purple-600" />;
     default:
       return <ChefHat size={16} className="text-gray-500" />;
   }
 };
 
-// ###############################
-// ### MAIN DASHBOARD COMPONENT ###
-// ###############################
+// --- Main Component ---
 const ChiefDashboard = () => {
   const [orders, setOrders] = useState([]);
   const [foods, setFoods] = useState([]);
@@ -109,68 +103,58 @@ const ChiefDashboard = () => {
   const [activeTab, setActiveTab] = useState("orders");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // --- API Call Function ---
-  // Use a relative path '/api' to leverage the Vite proxy
-  const api = axios.create({
-    baseURL: "https://citrus-c209.onrender.com/api",
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem("chefToken")}`,
-    },
-  });
-
-  // --- Data Fetching ---
+  // Fetch data with validation
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Use the 'success' and 'data' structure from our new backend
       const [ordersRes, foodsRes] = await Promise.all([
         api.get("/orders"),
-        api.get("/foods"), // Foods are public, no auth needed
+        api.get("/foods"),
       ]);
 
-      // --- THE BUG FIX (Line 103) ---
-      // We set state to `ordersRes.data.data` (the list)
-      // not `ordersRes.data` (the report object)
-      if (ordersRes.data.success) {
+      // Validate orders
+      if (ordersRes.data?.success && Array.isArray(ordersRes.data.data)) {
         setOrders(ordersRes.data.data);
       } else {
-        toast.error("Could not load orders.");
+        toast.error("Failed to load orders.");
+        setOrders([]);
       }
 
-      // --- FIX FOR FOODS ---
-      // The food controller sends the array directly
-      console.log("Foods response:", foodsRes.data);
-
-      if (foodsRes.data) {
+      // Validate foods
+      if (Array.isArray(foodsRes.data)) {
         setFoods(foodsRes.data);
       } else {
-        toast.error("Could not load menu.");
+        toast.error("Invalid menu data received.");
+        setFoods([]);
       }
     } catch (error) {
-      const errorMsg =
+      console.error("Fetch error:", error);
+      const msg =
         error.response?.status === 401
           ? "Session expired. Please log in again."
-          : "Failed to fetch data.";
-      toast.error(errorMsg);
+          : "Failed to fetch dashboard data.";
+      toast.error(msg);
+      setOrders([]);
+      setFoods([]);
     } finally {
       setIsLoading(false);
     }
-  }, []); // Removed api from dependencies, it's stable
+  }, []);
 
-  // --- Socket.io Event Handlers ---
+  // Auth + Socket setup
   useEffect(() => {
-    // Check auth status on load
-    const token = localStorage.getItem("chefToken");
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("chefToken") : null;
     if (token) {
       setAuthenticated(true);
-      fetchData(); // Fetch initial data
+      fetchData();
     } else {
       setIsLoading(false);
     }
 
-    // --- Socket Listeners ---
-    function onNewOrder(newOrder) {
-      setOrders((prevOrders) => [newOrder, ...prevOrders]);
+    // Socket listeners
+    const onNewOrder = (newOrder) => {
+      setOrders((prev) => [newOrder, ...prev]);
       toast.success(`New order for Table #${newOrder.tableId}!`, {
         icon: "🔔",
         style: {
@@ -178,29 +162,25 @@ const ChiefDashboard = () => {
           color: "var(--text-on-primary)",
         },
       });
-    }
+    };
 
-    function onOrderUpdated(updatedOrder) {
-      // --- UPDATED LOGIC ---
-      // If the order is marked as "Served" or "Cancelled", remove it from the Chef's live board.
+    const onOrderUpdated = (updatedOrder) => {
       if (
-        updatedOrder.status === ORDER_STATUS.SERVED ||
-        updatedOrder.status === ORDER_STATUS.CANCELLED
+        [ORDER_STATUS.SERVED, ORDER_STATUS.CANCELLED].includes(
+          updatedOrder.status
+        )
       ) {
-        setOrders((prevOrders) =>
-          prevOrders.filter((o) => o._id !== updatedOrder._id)
-        );
+        setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
       } else {
-        // Otherwise, just update its status (e.g., Pending -> Preparing)
-        setOrders((prevOrders) =>
-          prevOrders.map((o) => (o._id === updatedOrder._id ? updatedOrder : o))
+        setOrders((prev) =>
+          prev.map((o) => (o._id === updatedOrder._id ? updatedOrder : o))
         );
       }
-    }
+    };
 
-    function onOrderDeleted({ id }) {
-      setOrders((prevOrders) => prevOrders.filter((o) => o._id !== id));
-    }
+    const onOrderDeleted = ({ id }) => {
+      setOrders((prev) => prev.filter((o) => o._id !== id));
+    };
 
     socket.on("newOrder", onNewOrder);
     socket.on("orderUpdated", onOrderUpdated);
@@ -211,75 +191,59 @@ const ChiefDashboard = () => {
       socket.off("orderUpdated", onOrderUpdated);
       socket.off("orderDeleted", onOrderDeleted);
     };
-  }, [authenticated, fetchData]);
+  }, [fetchData]);
 
+  // Refresh on tab change
+  useEffect(() => {
+    if (activeTab === "menu") {
+      fetchData();
+    }
+  }, [activeTab, fetchData]);
+
+  // Handlers
   const handleStatusUpdate = async (order) => {
     const currentStatus = order.status;
-    const nextStatusIndex = STATUS_FLOW.indexOf(currentStatus) + 1;
-
-    // If it's the last step ("Ready"), the next action is different
-    if (nextStatusIndex >= STATUS_FLOW.length) {
-      // This is the "Mark as Served" step
+    const nextIndex = STATUS_FLOW.indexOf(currentStatus) + 1;
+    if (nextIndex >= STATUS_FLOW.length) {
       handleServeOrder(order);
       return;
     }
 
-    const nextStatus = STATUS_FLOW[nextStatusIndex];
-
+    const nextStatus = STATUS_FLOW[nextIndex];
     try {
-      // Optimistic UI Update (feels faster)
-      setOrders((prevOrders) =>
-        prevOrders.map((o) =>
+      setOrders((prev) =>
+        prev.map((o) =>
           o._id === order._id ? { ...o, status: nextStatus } : o
         )
       );
-
-      await api.patch(`/orders/${order._id}/status`, {
-        status: nextStatus,
-      });
+      await api.patch(`/orders/${order._id}/status`, { status: nextStatus });
       toast.success(
         `Order for Table #${order.tableId} marked as ${nextStatus}.`
       );
-      // No need to call fetchData(), socket will handle the update
     } catch (error) {
       toast.error("Failed to update status.");
-      // Revert optimistic update
-      setOrders((prevOrders) =>
-        prevOrders.map((o) =>
+      setOrders((prev) =>
+        prev.map((o) =>
           o._id === order._id ? { ...o, status: currentStatus } : o
         )
       );
     }
   };
-  useEffect(() => {
-    if (activeTab === "menu") {
-      fetchData(); // refresh orders + foods when switching to Menu
-    }
-  }, [activeTab, fetchData]);
 
   const handleServeOrder = async (order) => {
-    // 2. Update status to "Served".
-    // --- UPDATED LOGIC ---
-    // We removed the optimistic UI update.
-    // The socket listener 'onOrderUpdated' will now handle removing it from the list
-    // once the server confirms the update. This is more reliable.
     try {
       await api.patch(`/orders/${order._id}/status`, {
-        status: "Served",
+        status: ORDER_STATUS.SERVED,
       });
       toast.success(
         `Order for Table #${order.tableId} served and bill generated!`
       );
     } catch (error) {
       toast.error("Failed to mark as served.");
-      // No need to revert UI, as we are no longer optimistic.
     }
   };
 
-  // --- Memoized Derived State ---
-  // This re-runs *only* when orders or searchTerm changes
   const filteredOrders = useMemo(() => {
-    // This is safe because 'orders' is guaranteed to be an array []
     return orders.filter(
       (order) =>
         order.tableId.toString().includes(searchTerm) ||
@@ -289,9 +253,22 @@ const ChiefDashboard = () => {
     );
   }, [orders, searchTerm]);
 
-  // --- Main Render ---
+  if (!authenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Lock className="mx-auto h-12 w-12 text-gray-400" />
+          <h2 className="mt-4 text-xl font-bold">Access Denied</h2>
+          <p className="text-gray-600">
+            Please log in as a chef to access this dashboard.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-var(--background-color) text-var(--text-color)">
+    <div className="min-h-screen bg-[var(--background-color)] text-[var(--text-color)]">
       <Toaster position="top-right" />
       <DashboardHeader activeTab={activeTab} onTabChange={setActiveTab} />
 
@@ -306,90 +283,70 @@ const ChiefDashboard = () => {
             onGenerateBill={handleServeOrder}
           />
         ) : (
-          <MenuManagementSection
-            foods={foods}
-            onDataRefresh={fetchData}
-            api={api}
-          />
+          <MenuManagementSection foods={foods} onDataRefresh={fetchData} />
         )}
       </main>
     </div>
   );
 };
 
-// ########################
-// ### DASHBOARD HEADER ###
-// ########################
-const DashboardHeader = ({ activeTab, onTabChange }) => {
-  return (
-    <header className="sticky top-0  bg-[var(--surface-color)] shadow-sm -z-0">
-      <div className="mx-auto max-w-7xl px-4 ">
-        <div className="flex h-16 items-center justify-between ">
-          {/* Logo and Title */}
-          <div className="flex items-center gap-4 ">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--primary-color)]">
-              <ChefHat className="text-[var(--text-on-primary)]" />
-            </div>
-            <h1 className="text-xl font-bold text-[var(--text-color)]">
-              Citrus Chef Panel
-            </h1>
+// --- Sub-components (unchanged logic, just cleaned up) ---
+const DashboardHeader = ({ activeTab, onTabChange }) => (
+  <header className="sticky top-0 bg-[var(--surface-color)] shadow-sm z-10">
+    <div className="mx-auto max-w-7xl px-4">
+      <div className="flex h-16 items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--primary-color)]">
+            <ChefHat className="text-[var(--text-on-primary)]" />
           </div>
-
-          {/* Navigation Tabs */}
-          <div className="hidden md:flex md:gap-2">
-            <TabButton
-              label="Live Orders"
-              isActive={activeTab === "orders"}
-              onClick={() => onTabChange("orders")}
-            />
-            <TabButton
-              label="Menu Management"
-              isActive={activeTab === "menu"}
-              onClick={() => onTabChange("menu")}
-            />
-          </div>
+          <h1 className="text-xl font-bold">Citrus Chef Panel</h1>
         </div>
-
-        {/* Mobile Navigation */}
-        <div className="flex gap-2 border-t border-[var(--border-color)] p-2 md:hidden">
+        <div className="hidden md:flex gap-2">
           <TabButton
             label="Live Orders"
             isActive={activeTab === "orders"}
             onClick={() => onTabChange("orders")}
-            isMobile={true}
           />
           <TabButton
-            label="Menu"
+            label="Menu Management"
             isActive={activeTab === "menu"}
             onClick={() => onTabChange("menu")}
-            isMobile={true}
           />
         </div>
       </div>
-    </header>
-  );
-};
+      <div className="flex gap-2 border-t border-[var(--border-color)] p-2 md:hidden">
+        <TabButton
+          label="Live Orders"
+          isActive={activeTab === "orders"}
+          onClick={() => onTabChange("orders")}
+          isMobile
+        />
+        <TabButton
+          label="Menu"
+          isActive={activeTab === "menu"}
+          onClick={() => onTabChange("menu")}
+          isMobile
+        />
+      </div>
+    </div>
+  </header>
+);
 
 const TabButton = ({ label, isActive, onClick, isMobile = false }) => (
   <button
     onClick={onClick}
-    className={`
-      ${isMobile ? "w-full justify-center" : ""}
-      relative flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-all
-      ${
-        isActive
-          ? "bg-[var(--primary-color)] text-[var(--text-on-primary)] shadow-md"
-          : "text-[var(--text-color-secondary)] hover:bg-gray-100/50 hover:text-[var(--text-color)]"
-      }
-    `}
+    className={`${
+      isMobile ? "w-full justify-center" : ""
+    } relative flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-all ${
+      isActive
+        ? "bg-[var(--primary-color)] text-[var(--text-on-primary)] shadow-md"
+        : "text-[var(--text-color-secondary)] hover:bg-gray-100/50 hover:text-[var(--text-color)]"
+    }`}
   >
     {label}
   </button>
 );
 
-// ####################
-// ### ORDERS TAB ###
-// ####################
 const OrdersSection = ({
   orders,
   loading,
@@ -423,7 +380,7 @@ const OrdersSection = ({
       <EmptyState
         icon={<CheckCircle size={48} />}
         title="All Orders Cleared!"
-        description="New orders from customers will appear here."
+        description="New orders will appear here."
       />
     ) : (
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -456,27 +413,21 @@ const OrderCard = ({ order, onStatusUpdate, onGenerateBill }) => {
 
   return (
     <>
-      {/* Card Header */}
       <div className="border-b border-[var(--border-color)] p-4">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-xl font-bold text-[var(--text-color)]">
-            Table #{order.tableId}
-          </span>
+          <span className="text-xl font-bold">Table #{order.tableId}</span>
           <span
             className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${getStatusStyles(
               order.status
             )}`}
           >
-            <StatusIcon status={order.status} />
-            {order.status}
+            <StatusIcon status={order.status} /> {order.status}
           </span>
         </div>
         <p className="text-xs text-[var(--text-color-secondary)]">
           {dayjs(order.createdAt).fromNow()} ({order.items.length} items)
         </p>
       </div>
-
-      {/* Card Body (Items) */}
       <div className="flex-1 space-y-3 p-4">
         {order.items.map((item) => (
           <div key={item.food} className="flex items-center gap-3">
@@ -485,39 +436,31 @@ const OrderCard = ({ order, onStatusUpdate, onGenerateBill }) => {
             </span>
             <span className="flex-1 truncate font-medium">{item.name}</span>
             <span className="text-sm text-[var(--text-color-secondary)]">
-              ₹{item.price * item.quantity}
+              ₹{(item.price * item.quantity).toFixed(2)}
             </span>
           </div>
         ))}
       </div>
-
-      {/* Card Footer (Actions) */}
       <div className="border-t border-[var(--border-color)] bg-gray-50/50 p-4">
         <div className="mb-3 flex justify-between text-lg font-bold">
-          <span className="text-[var(--text-color)]">Total:</span>
+          <span>Total:</span>
           <span className="text-[var(--primary-color-dark)]">
-            {/* --- THE FIX --- */}
-            {/* Use (order.totalPrice || 0) to provide a fallback in case totalPrice is missing on old orders */}
             ₹{(order.totalPrice || 0).toFixed(2)}
           </span>
         </div>
-
-        {/* Action Button */}
         {order.status === ORDER_STATUS.READY ? (
           <button
             onClick={() => onGenerateBill(order)}
-            className="flex w-full items-center justify-center gap-2 rounded-md bg-zinc-700 px-4 py-3 text-base font-semibold text-white transition-all hover:bg-zinc-800"
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-zinc-700 px-4 py-3 text-base font-semibold text-white hover:bg-zinc-800"
           >
-            <FileText size={18} />
-            Generate Bill & Serve
+            <FileText size={18} /> Generate Bill & Serve
           </button>
         ) : (
           <button
             onClick={() => onStatusUpdate(order)}
-            className="flex w-full items-center justify-center gap-2 rounded-md bg-[var(--primary-color)] px-4 py-3 text-base font-semibold text-[var(--text-on-primary)] transition-all hover:bg-[var(--primary-color-dark)]"
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-[var(--primary-color)] px-4 py-3 text-base font-semibold text-[var(--text-on-primary)] hover:bg-[var(--primary-color-dark)]"
           >
-            <StatusIcon status={nextStatus} />
-            Mark as {nextStatus}
+            <StatusIcon status={nextStatus} /> Mark as {nextStatus}
           </button>
         )}
       </div>
@@ -525,10 +468,7 @@ const OrderCard = ({ order, onStatusUpdate, onGenerateBill }) => {
   );
 };
 
-// ####################
-// ### MENU TAB ###
-// ####################
-const MenuManagementSection = ({ foods, onDataRefresh, api }) => {
+const MenuManagementSection = ({ foods, onDataRefresh }) => {
   const [showForm, setShowForm] = useState(false);
 
   const handleDeleteFood = async (foodId) => {
@@ -536,7 +476,7 @@ const MenuManagementSection = ({ foods, onDataRefresh, api }) => {
       try {
         await api.delete(`/foods/${foodId}`);
         toast.success("Menu item deleted!");
-        onDataRefresh(); // Refresh data
+        onDataRefresh();
       } catch (error) {
         toast.error("Failed to delete menu item.");
       }
@@ -554,11 +494,8 @@ const MenuManagementSection = ({ foods, onDataRefresh, api }) => {
             className="overflow-hidden"
           >
             <div className="rounded-xl bg-[var(--surface-color)] p-6 shadow-[var(--box-shadow)]">
-              <h2 className="mb-6 text-xl font-bold text-[var(--text-color)]">
-                Add New Menu Item
-              </h2>
+              <h2 className="mb-6 text-xl font-bold">Add New Menu Item</h2>
               <FoodForm
-                api={api}
                 onSuccess={() => {
                   setShowForm(false);
                   onDataRefresh();
@@ -571,7 +508,7 @@ const MenuManagementSection = ({ foods, onDataRefresh, api }) => {
 
       <div className="rounded-xl bg-[var(--surface-color)] p-6 shadow-[var(--box-shadow)]">
         <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-          <h2 className="text-xl font-bold text-[var(--text-color)]">
+          <h2 className="text-xl font-bold">
             Current Menu
             <span className="ml-3 rounded-full bg-[var(--primary-color)]/10 px-3 py-1 text-sm font-medium text-[var(--primary-color-dark)]">
               {foods.length} items
@@ -579,10 +516,9 @@ const MenuManagementSection = ({ foods, onDataRefresh, api }) => {
           </h2>
           <button
             onClick={() => setShowForm(!showForm)}
-            className="flex items-center justify-center gap-2 rounded-md bg-[var(--primary-color)] px-4 py-2 text-sm font-semibold text-[var(--text-on-primary)] transition-all hover:bg-[var(--primary-color-dark)]"
+            className="flex items-center justify-center gap-2 rounded-md bg-[var(--primary-color)] px-4 py-2 text-sm font-semibold text-[var(--text-on-primary)] hover:bg-[var(--primary-color-dark)]"
           >
-            <Plus size={18} />
-            {showForm ? "Cancel" : "Add New Item"}
+            <Plus size={18} /> {showForm ? "Cancel" : "Add New Item"}
           </button>
         </div>
 
