@@ -5,7 +5,7 @@ import axios from "axios";
 
 // --- API instance ---
 const api = axios.create({
-  baseURL: "/api",
+  baseURL: "https://citrus-c209.onrender.com/api",
 });
 
 const Cart = ({
