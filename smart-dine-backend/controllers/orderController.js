@@ -3,35 +3,72 @@ import Food from "../models/Food.js"; // ✅ Import Food model for analytics
 
 // Place a new order
 export const placeOrder = async (req, res) => {
-  const { tableId, guestId, items, totalPrice } = req.body;
-
-  if (!tableId || !guestId || !items?.length) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Invalid order data" });
-  }
-
-  // Ensure all items have valid food ObjectId
-  const sanitizedItems = items.map((item) => ({
-    food: item.food || null,
-    name: item.name || "Unnamed food",
-    price: item.price || 0,
-    quantity: item.quantity || 1,
-  }));
-
   try {
+    const { tableId, guestId, items } = req.body;
+
+    // Basic validation
+    if (!tableId || !guestId || !Array.isArray(items) || items.length === 0) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Table ID, Guest ID, and items are required.",
+        });
+    }
+
+    // Validate each item exists in DB
+    const validatedItems = [];
+    let totalPrice = 0;
+
+    for (const item of items) {
+      if (!item.food) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message: "Each item must have a valid food ID.",
+          });
+      }
+
+      const foodDoc = await Food.findById(item.food);
+      if (!foodDoc) {
+        return res
+          .status(404)
+          .json({
+            success: false,
+            message: `Food item not found: ${item.food}`,
+          });
+      }
+
+      const price = foodDoc.price;
+      const quantity = item.quantity || 1;
+
+      validatedItems.push({
+        food: foodDoc._id,
+        name: foodDoc.name,
+        price,
+        quantity,
+      });
+
+      totalPrice += price * quantity;
+    }
+
+    // Save order
     const newOrder = await Order.create({
       tableId,
       guestId,
-      items: sanitizedItems,
-      totalPrice: totalPrice || 0,
+      items: validatedItems,
+      totalPrice,
     });
 
-    const io = req.app.get("io");
+    // Populate food refs for socket
     const populatedOrder = await newOrder.populate("items.food");
-    io.emit("newOrder", populatedOrder);
 
-    res.status(201).json({ success: true, data: newOrder });
+    // Emit new order to socket
+    const io = req.app.get("io");
+    if (io) io.emit("newOrder", populatedOrder);
+
+    res.status(201).json({ success: true, data: populatedOrder });
   } catch (err) {
     console.error("Failed to place order:", err);
     res.status(500).json({
