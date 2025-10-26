@@ -24,7 +24,7 @@ import {
 import Spinner from "../components/Spinner";
 
 const api = axios.create({
-  baseURL: "/api", // proxy handled in vite config
+  baseURL: "https://citrus-c209.onrender.com/api", // proxy handled in vite config
 });
 
 const OwnerDashboard = () => {
