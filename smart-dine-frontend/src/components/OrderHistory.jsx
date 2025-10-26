@@ -58,18 +58,24 @@ const OrderHistory = ({ guestId, tableId, onOrdersCleared }) => {
   };
 
   // Download bill & clear only this guest's orders
-  const handleDownloadBill = async () => {
+  const handleDownloadBill = async (order) => {
     try {
-      if (!orders || orders.length === 0) return;
-      generateBillPDF(orders);
+      if (!order) return;
 
-      await axios.delete(`${API_URL}/orders/guest/${guestId}`);
-      setOrders([]);
-      toast.success("Bill downloaded and orders cleared!");
+      // generate bill only for this order
+      generateBillPDF([order]);
+
+      // delete only that specific order
+      await axios.delete(`${API_URL}/orders/${order._id}`);
+
+      // remove that order from state
+      setOrders((prev) => prev.filter((o) => o._id !== order._id));
+
+      toast.success("Bill downloaded and order cleared!");
       onOrdersCleared?.();
     } catch (err) {
-      console.error("Failed to clear guest orders:", err);
-      toast.error("Failed to clear orders after bill download.");
+      console.error("Failed to clear specific order:", err);
+      toast.error("Failed to clear order after bill download.");
     }
   };
 
@@ -145,7 +151,7 @@ const OrderHistory = ({ guestId, tableId, onOrdersCleared }) => {
 
               {order.status === "Served" && (
                 <button
-                  onClick={handleDownloadBill}
+                  onClick={() => handleDownloadBill(order)}
                   className="flex items-center gap-1 rounded-md bg-gray-200 px-2 py-1 text-xs font-medium text-gray-800 hover:bg-gray-300"
                   title="Download Bill & Clear Orders"
                 >
