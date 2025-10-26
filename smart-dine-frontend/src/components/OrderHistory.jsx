@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -33,10 +33,11 @@ const OrderHistory = ({ guestId, tableId, onOrdersCleared }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const intervalRef = useRef(null);
 
   // Fetch orders for this guest
   const fetchMyOrders = async () => {
-    if (!guestId || !tableId) return setLoading(false); // ensure both IDs exist
+    if (!guestId || !tableId) return setLoading(false);
     setLoading(true);
     setError(null);
 
@@ -44,8 +45,16 @@ const OrderHistory = ({ guestId, tableId, onOrdersCleared }) => {
       const { data } = await axios.get(
         `${API_URL}/orders/my-orders?guestId=${guestId}&tableId=${tableId}`
       );
-      if (data.success) setOrders(data.data);
-      else throw new Error(data.message || "Failed to fetch orders.");
+      if (data.success) {
+        // Merge & deduplicate to avoid duplicate orders
+        setOrders((prev) => {
+          const merged = [...prev, ...data.data];
+          const deduped = merged.filter(
+            (v, i, a) => a.findIndex((o) => o._id === v._id) === i
+          );
+          return deduped;
+        });
+      } else throw new Error(data.message || "Failed to fetch orders.");
     } catch (err) {
       console.error("Failed to fetch guest orders:", err);
       setError(
@@ -57,46 +66,38 @@ const OrderHistory = ({ guestId, tableId, onOrdersCleared }) => {
     }
   };
 
-  // Download bill & clear only this guest's orders
+  // Download bill & remove this guest's order
   const handleDownloadBill = async (order) => {
-    // Prevent multiple clicks during processing
     if (loading) return;
 
+    // Pause interval while processing
+    clearInterval(intervalRef.current);
+
     try {
-      // 1. Generate PDF for this single order
       generateBillPDF([order]);
 
-      // 2. Optimistically update UI (optional but improves UX)
-      const prevOrders = orders;
-      setOrders((prev) => prev.filter((o) => o._id !== order._id));
-
-      // 3. Delete ONLY this order from backend
+      // Delete order from backend first
       await axios.delete(`${API_URL}/orders/${order._id}`);
+
+      // Remove from state
+      setOrders((prev) => prev.filter((o) => o._id !== order._id));
 
       toast.success("Bill downloaded and order cleared!");
 
-      // 4. Notify parent if ALL orders are now cleared
-      if (prevOrders.length === 1) {
-        onOrdersCleared?.();
-      }
+      if (orders.length === 1) onOrdersCleared?.();
     } catch (err) {
       console.error("Failed to clear order:", err);
       toast.error("Failed to clear order. Please try again.");
-
-      // 5. Revert optimistic update on error
-      setOrders((prev) => {
-        // Avoid duplicates: only add back if not already present
-        if (!prev.some((o) => o._id === order._id)) {
-          return [order, ...prev];
-        }
-        return prev;
-      });
+    } finally {
+      // Resume interval
+      intervalRef.current = setInterval(fetchMyOrders, 5000);
     }
   };
+
   useEffect(() => {
     fetchMyOrders();
-    const interval = setInterval(fetchMyOrders, 5000); // auto-refresh every 50s
-    return () => clearInterval(interval);
+    intervalRef.current = setInterval(fetchMyOrders, 5000);
+    return () => clearInterval(intervalRef.current);
   }, [guestId, tableId]);
 
   if (loading)
