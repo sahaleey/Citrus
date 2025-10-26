@@ -62,8 +62,6 @@ const Cart = ({
     };
 
     try {
-      console.log("Order payload:", payload);
-
       const { data } = await api.post("/orders", payload);
       if (data.success) {
         toast.success("Order placed successfully! 🍽️");

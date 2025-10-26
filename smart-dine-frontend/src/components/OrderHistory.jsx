@@ -59,26 +59,39 @@ const OrderHistory = ({ guestId, tableId, onOrdersCleared }) => {
 
   // Download bill & clear only this guest's orders
   const handleDownloadBill = async (order) => {
-    try {
-      // 1. Generate PDF for THIS order only
-      generateBillPDF([order]); // 👈 Wrap single order in array
+  // Prevent multiple clicks during processing
+  if (loading) return;
 
-      // 2. Delete ONLY this order from backend
-      await axios.delete(`${API_URL}/orders/${order._id}`);
+  try {
+    // 1. Generate PDF for this single order
+    generateBillPDF([order]);
 
-      // 3. Remove ONLY this order from local state
-      setOrders((prev) => prev.filter((o) => o._id !== order._id));
+    // 2. Optimistically update UI (optional but improves UX)
+    const prevOrders = orders;
+    setOrders((prev) => prev.filter((o) => o._id !== order._id));
 
-      toast.success("Bill downloaded and order cleared!");
-      if (orders.length === 1) {
-        onOrdersCleared?.(); // Trigger parent if last order removed
-      }
-    } catch (err) {
-      console.error("Failed to clear order:", err);
-      toast.error("Failed to clear order after bill download.");
+    // 3. Delete ONLY this order from backend
+    await axios.delete(`${API_URL}/orders/${order._id}`);
+
+    toast.success("Bill downloaded and order cleared!");
+
+    // 4. Notify parent if ALL orders are now cleared
+    if (prevOrders.length === 1) {
+      onOrdersCleared?.();
     }
-  };
+  } catch (err) {
+    console.error("Failed to clear order:", err);
+    toast.error("Failed to clear order. Please try again.");
 
+    // 5. Revert optimistic update on error
+    setOrders((prev) => {
+      // Avoid duplicates: only add back if not already present
+      if (!prev.some((o) => o._id === order._id)) {
+        return [order, ...prev];
+      }
+      return prev;
+    });
+  }
   useEffect(() => {
     fetchMyOrders();
     const interval = setInterval(fetchMyOrders, 5000); // auto-refresh every 50s
