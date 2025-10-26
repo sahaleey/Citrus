@@ -238,9 +238,12 @@ const ChiefDashboard = () => {
       await api.patch(`/orders/${order._id}/status`, {
         status: ORDER_STATUS.SERVED,
       });
+      // remove served order immediately from state
+      setOrders((prev) => prev.filter((o) => o._id !== order._id));
       toast.success(
         `Order for Table #${order.tableId} served and bill generated!`
       );
+      socket.emit("orderUpdated", { ...order, status: ORDER_STATUS.SERVED });
     } catch (error) {
       toast.error("Failed to mark as served.");
     }

@@ -60,21 +60,21 @@ const OrderHistory = ({ guestId, tableId, onOrdersCleared }) => {
   // Download bill & clear only this guest's orders
   const handleDownloadBill = async (order) => {
     try {
-      if (!order) return;
+      // 1. Generate PDF for THIS order only
+      generateBillPDF([order]); // 👈 Wrap single order in array
 
-      // generate bill only for this order
-      generateBillPDF([order]);
-
-      // delete only that specific order
+      // 2. Delete ONLY this order from backend
       await axios.delete(`${API_URL}/orders/${order._id}`);
 
-      // remove that order from state
+      // 3. Remove ONLY this order from local state
       setOrders((prev) => prev.filter((o) => o._id !== order._id));
 
       toast.success("Bill downloaded and order cleared!");
-      onOrdersCleared?.();
+      if (orders.length === 1) {
+        onOrdersCleared?.(); // Trigger parent if last order removed
+      }
     } catch (err) {
-      console.error("Failed to clear specific order:", err);
+      console.error("Failed to clear order:", err);
       toast.error("Failed to clear order after bill download.");
     }
   };
