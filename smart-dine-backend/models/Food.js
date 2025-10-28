@@ -9,8 +9,6 @@ const foodSchema = new mongoose.Schema({
   category: { type: String, required: true },
   offer: { type: String },
   image: { type: String, required: true },
-
-  // 👇 new field
   totalSold: { type: Number, default: 0 },
 });
 

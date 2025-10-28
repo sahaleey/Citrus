@@ -41,12 +41,9 @@ const STATUS_FLOW = [
 ];
 
 // Socket.io (✅ Fixed trailing spaces)
-const socket = io(
-  import.meta.env.VITE_API_URL || "https://citrus-c209.onrender.com/api",
-  {
-    path: "/socket.io",
-  }
-);
+const socket = io(import.meta.env.VITE_API_URL || "http://localhost:5000", {
+  path: "/socket.io",
+});
 
 // --- Helpers ---
 const getStatusStyles = (status) => {

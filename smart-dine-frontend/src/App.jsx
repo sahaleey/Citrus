@@ -15,27 +15,18 @@ function App() {
   // Function to add an item to the cart
   const addToCart = (item) => {
     setCart((prevCart) => {
-      // --- UPDATED: Use foodId from the item object ---
-      const existingItem = prevCart.find((ci) => ci.foodId === item._id);
+      // ✅ FIXED: Use item.foodId (which Menu.jsx sends)
+      const existingItem = prevCart.find((ci) => ci.foodId === item.foodId);
+
       if (existingItem) {
         // Increase quantity if item already in cart
         return prevCart.map((ci) =>
-          ci.foodId === item._id ? { ...ci, quantity: ci.quantity + 1 } : ci
+          ci.foodId === item.foodId ? { ...ci, quantity: ci.quantity + 1 } : ci
         );
       }
-      // Add new item to cart
-      // --- UPDATED: Store the whole item, not just...
-      // No, this logic is what's causing issues. Let's use the
-      // *correct* logic from your File Context.
-      return [
-        ...prevCart,
-        {
-          foodId: item._id,
-          name: item.name,
-          price: item.price,
-          quantity: 1,
-        },
-      ];
+
+      // Add new item to cart - just spread the item to preserve foodId
+      return [...prevCart, { ...item }];
     });
   };
 

@@ -8,8 +8,7 @@ import { generateBillPDF } from "../utils/BillGenerator";
 
 dayjs.extend(relativeTime);
 
-const API_URL =
-  import.meta.env.VITE_API_URL || "https://citrus-c209.onrender.com/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 // Status badge helper
 const getStatusBadge = (status) => {
@@ -33,12 +32,14 @@ const OrderHistory = ({ guestId, tableId, onOrdersCleared }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const intervalRef = useRef(null);
 
   // Fetch orders for this guest
   const fetchMyOrders = async () => {
     if (!guestId || !tableId) return setLoading(false);
-    setLoading(true);
+
+    if (isInitialLoad) setLoading(true); // Only show loading on first fetch
     setError(null);
 
     try {
@@ -46,14 +47,7 @@ const OrderHistory = ({ guestId, tableId, onOrdersCleared }) => {
         `${API_URL}/orders/my-orders?guestId=${guestId}&tableId=${tableId}`
       );
       if (data.success) {
-        // Merge & deduplicate to avoid duplicate orders
-        setOrders((prev) => {
-          const merged = [...prev, ...data.data];
-          const deduped = merged.filter(
-            (v, i, a) => a.findIndex((o) => o._id === v._id) === i
-          );
-          return deduped;
-        });
+        setOrders(data.data);
       } else throw new Error(data.message || "Failed to fetch orders.");
     } catch (err) {
       console.error("Failed to fetch guest orders:", err);
@@ -63,6 +57,7 @@ const OrderHistory = ({ guestId, tableId, onOrdersCleared }) => {
       toast.error("Could not fetch your order history.");
     } finally {
       setLoading(false);
+      setIsInitialLoad(false); // After first load, don't show loading spinner
     }
   };
 

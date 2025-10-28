@@ -68,3 +68,16 @@ export const deleteFood = async (req, res) => {
     res.status(500).json({ error: "Failed to delete food" });
   }
 };
+
+// for edit food
+export const updateFood = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const updated = await Food.findByIdAndUpdate(id, req.body, { new: true });
+    if (!updated) return res.status(404).json({ error: "Food not found" });
+    res.json({ message: "Food updated", food: updated });
+  } catch (err) {
+    console.error("Update food error:", err);
+    res.status(500).json({ error: "Failed to update food" });
+  }
+};

@@ -1,5 +1,6 @@
 import Order from "../models/Order.js";
-import Food from "../models/Food.js"; // ✅ Import Food model for analytics
+import Food from "../models/Food.js";
+import Revenue from "../models/Revenue.js"; // 🔑 ADD THIS IMPORT
 
 // Place a new order
 export const placeOrder = async (req, res) => {
@@ -30,6 +31,10 @@ export const placeOrder = async (req, res) => {
     const io = req.app.get("io");
     const populatedOrder = await newOrder.populate("items.food");
     io.emit("newOrder", populatedOrder);
+
+    console.log(
+      `📦 New order placed: #${newOrder._id} - ₹${newOrder.totalPrice}`
+    );
 
     res.status(201).json({ success: true, data: newOrder });
   } catch (err) {
@@ -94,6 +99,8 @@ export const deleteOrder = async (req, res) => {
     const io = req.app.get("io");
     io.emit("orderDeleted", { id: req.params.id });
 
+    console.log(`🗑️ Order deleted: #${req.params.id}`);
+
     res
       .status(200)
       .json({ success: true, message: "Order deleted successfully" });
@@ -107,7 +114,7 @@ export const deleteOrder = async (req, res) => {
   }
 };
 
-// Update order status (and trigger analytics)
+// Update order status (🔑 FIXED: Now creates Revenue records)
 export const updateOrderStatus = async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
@@ -146,14 +153,48 @@ export const updateOrderStatus = async (req, res) => {
       io.to(updatedOrder.tableId).emit("orderStatusUpdate", updatedOrder);
     }
 
-    // ✅ When order is Served, record analytics for top-selling foods
+    // 🔑 CRITICAL FIX: When order is Served, record BOTH analytics
     if (status === "Served") {
-      for (const item of updatedOrder.items) {
-        if (item.food?._id) {
-          await Food.findByIdAndUpdate(item.food._id, {
-            $inc: { totalSold: item.quantity },
-          });
+      try {
+        // 1. Create Revenue record for dashboard analytics
+        const revenueRecord = await Revenue.create({
+          guestId: updatedOrder.guestId,
+          tableId: updatedOrder.tableId,
+          totalAmount: updatedOrder.totalPrice,
+          date: new Date(),
+        });
+
+        console.log(
+          `💰 Revenue recorded: ₹${updatedOrder.totalPrice} (Record ID: ${revenueRecord._id})`
+        );
+
+        // 2. Update Food totalSold counters for top items analytics
+        for (const item of updatedOrder.items) {
+          if (item.food?._id) {
+            const updatedFood = await Food.findByIdAndUpdate(
+              item.food._id,
+              { $inc: { totalSold: item.quantity } },
+              { new: true }
+            );
+
+            console.log(
+              `📈 Updated ${item.name}: totalSold now ${
+                updatedFood?.totalSold || "unknown"
+              }`
+            );
+          } else {
+            console.warn(`⚠️ Food ID missing for item: ${item.name}`);
+          }
         }
+
+        console.log(`✅ Order #${id} marked as Served - Analytics updated`);
+      } catch (analyticsError) {
+        console.error(
+          `❌ Failed to record analytics for order #${id}:`,
+          analyticsError
+        );
+        // Don't fail the whole request, just log the error
+        // The order status update still succeeded
       }
     }
 
