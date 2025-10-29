@@ -41,7 +41,7 @@ const STATUS_FLOW = [
 ];
 
 // Socket.io (✅ Fixed trailing spaces)
-const socket = io(import.meta.env.VITE_API_URL || "http://localhost:5000", {
+const socket = io(import.meta.env.VITE_API_BASE_URL || "http://localhost:5000", {
   path: "/socket.io",
 });
 

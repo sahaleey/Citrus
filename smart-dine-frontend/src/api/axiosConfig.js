@@ -2,7 +2,7 @@ import axios from "axios";
 
 // 1. Create a global API instance
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api",
 });
 
 // 2. Create an "interceptor" (a helper that runs before every request)

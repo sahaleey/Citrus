@@ -16,7 +16,8 @@ import BillModal from "../components/BillModel";
 import { Search, AlertTriangle, XCircle } from "lucide-react";
 
 // API & Socket config
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 
 const api = axios.create({ baseURL: API_BASE });
