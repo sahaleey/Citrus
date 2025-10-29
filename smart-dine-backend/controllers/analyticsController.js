@@ -29,12 +29,6 @@ const calculateRevenue = async (startDate, endDate) => {
       },
     },
   ]);
-  console.log(
-    `💰 Revenue from ${startDate.toLocaleDateString()} to ${
-      endDate ? endDate.toLocaleDateString() : "now"
-    }:`,
-    revenueData
-  );
   return {
     totalRevenue: revenueData?.totalRevenue || 0,
     totalEntries: revenueData?.totalEntries || 0,
@@ -55,7 +49,7 @@ const getTopSellingItems = async () => {
     { $sort: { totalSold: -1 } },
     { $limit: 5 },
   ]);
-  console.log("🏆 Top selling items:", items);
+
   return items;
 };
 
@@ -82,7 +76,7 @@ const getMonthlySalesTrend = async (startDate) => {
     },
     { $sort: { month: 1 } },
   ]);
-  console.log("📈 Monthly sales trend:", trend);
+
   return trend;
 };
 
@@ -96,12 +90,6 @@ export const getDashboardStats = async (req, res) => {
 
     // Check if Revenue collection has any data
     const totalRevenueRecords = await Revenue.countDocuments();
-
-    if (totalRevenueRecords === 0) {
-      console.warn(
-        '⚠️ No revenue records found! Make sure orders are being marked as "Served"'
-      );
-    }
 
     // Fetch everything in parallel
     const [monthData, yearData, lastYearData, topItems, salesTrend] =

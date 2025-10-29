@@ -38,9 +38,11 @@ const LoginPage = () => {
     <div className="flex min-h-[80vh] items-center justify-center bg-[var(--background-color)]">
       <div className="w-full max-w-md space-y-6 rounded-xl border border-[var(--border-color)] bg-[var(--surface-color)] p-8 shadow-lg">
         <div className="text-center">
-          <Citrus
-            size={48}
-            className="mx-auto mb-3 text-[var(--primary-color)]"
+          <img
+            src="/images/logo.jpg"
+            alt=""
+            srcSet=""
+            className="flex items-center justify-center mx-auto mb-4 h-16 w-16 rounded-full object-cover shadow-md scale-120 hover:scale-125 transition-transform"
           />
           <h2 className="text-3xl font-bold text-[var(--text-color)]">
             Admin & Chef Login

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import api from "../api/axiosConfig"; // ✅ Centralized, env-aware API client
+import api from "../api/axiosConfig";
 import { toast, Toaster } from "react-hot-toast";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -41,7 +41,7 @@ const STATUS_FLOW = [
 ];
 
 // Socket.io (✅ Fixed trailing spaces)
-const socket = io(import.meta.env.VITE_API_BASE_URL || "http://localhost:5000", {
+const socket = io(import.meta.env.VITE_SOCKET_URL || "http://localhost:5000", {
   path: "/socket.io",
 });
 
@@ -547,7 +547,7 @@ const MenuManagementSection = ({ foods, onDataRefresh }) => {
   );
 };
 
-const FoodForm = ({ api, onSuccess, food: initialFood }) => {
+const FoodForm = ({ onSuccess, food: initialFood }) => {
   const [food, setFood] = useState(
     initialFood || {
       name: "",
@@ -580,6 +580,7 @@ const FoodForm = ({ api, onSuccess, food: initialFood }) => {
       onSuccess(); // Call parent's success handler
     } catch (error) {
       toast.error("Failed to add menu item.");
+      console.error("Food form submit error:", error);
     } finally {
       setIsSubmitting(false);
     }

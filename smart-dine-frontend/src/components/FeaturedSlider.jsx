@@ -79,11 +79,11 @@ const FeaturedSlider = ({ items = [], onItemClick }) => {
           transition={{ duration: 0.6 }}
           viewport={{ once: true }}
         >
-          <span className="inline-block px-4 py-1.5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-sm font-semibold rounded-full mb-4 shadow-lg">
-            🍽️ Chef's Special
+          <span className="inline-block px-4 py-1.5 bg-gradient-to-r from-green-300 to-green-500 text-white text-sm font-semibold rounded-full mb-4 shadow-lg">
+            Smart Dine
           </span>
-          <h2 className="text-4xl lg:text-6xl font-bold bg-gradient-to-br from-gray-900 to-gray-700 bg-clip-text text-transparent mb-4">
-            Featured Menu
+          <h2 className="text-4xl lg:text-6xl font-bold bg-linear-to-br from-green-700 to-green-300/90 bg-clip-text text-transparent mb-4">
+            Welcome to Citrus Juicerie
           </h2>
           <p className="text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
             Discover our most popular and chef-recommended dishes, crafted with
@@ -150,7 +150,7 @@ const FeaturedSlider = ({ items = [], onItemClick }) => {
         )}
 
         {/* Slider Track */}
-        <div className="relative overflow-hidden rounded-3xl lg:rounded-4xl shadow-2xl bg-gradient-to-br from-gray-50 to-white border border-white/20 backdrop-blur-sm">
+        <div className="relative overflow-hidden rounded-3xl lg:rounded-4xl shadow-2xl bg-linear-to-br from-gray-50 to-white border border-white/20 backdrop-blur-sm">
           <div
             ref={sliderRef}
             className="flex transition-transform duration-700 ease-out"
