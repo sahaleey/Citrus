@@ -246,6 +246,19 @@ const ChiefDashboard = () => {
     }
   };
 
+  const handleCancelOrder = async (order) => {
+    try {
+      await api.patch(`/orders/${order._id}/status`, {
+        status: ORDER_STATUS.CANCELLED,
+      });
+      toast.success(`Order for Table #${order.tableId} cancelled.`);
+      setOrders((prev) => prev.filter((o) => o._id !== order._id));
+      socket.emit("orderUpdated", { ...order, status: ORDER_STATUS.CANCELLED });
+    } catch (error) {
+      toast.error("Failed to cancel order.");
+    }
+  };
+
   const filteredOrders = useMemo(() => {
     return orders.filter(
       (order) =>
@@ -284,6 +297,7 @@ const ChiefDashboard = () => {
             onSearchChange={setSearchTerm}
             onStatusUpdate={handleStatusUpdate}
             onGenerateBill={handleServeOrder}
+            onCancelOrder={handleCancelOrder}
           />
         ) : (
           <MenuManagementSection foods={foods} onDataRefresh={fetchData} />
@@ -357,6 +371,7 @@ const OrdersSection = ({
   onSearchChange,
   onStatusUpdate,
   onGenerateBill,
+  onCancelOrder,
 }) => (
   <section>
     <div className="relative mb-6">
@@ -402,6 +417,7 @@ const OrdersSection = ({
                 order={order}
                 onStatusUpdate={onStatusUpdate}
                 onGenerateBill={onGenerateBill}
+                onCancelOrder={onCancelOrder}
               />
             </motion.div>
           ))}
@@ -411,7 +427,12 @@ const OrdersSection = ({
   </section>
 );
 
-const OrderCard = ({ order, onStatusUpdate, onGenerateBill }) => {
+const OrderCard = ({
+  order,
+  onStatusUpdate,
+  onGenerateBill,
+  onCancelOrder,
+}) => {
   const nextStatus = STATUS_FLOW[STATUS_FLOW.indexOf(order.status) + 1];
 
   return (
@@ -466,6 +487,27 @@ const OrderCard = ({ order, onStatusUpdate, onGenerateBill }) => {
             <StatusIcon status={nextStatus} /> Mark as {nextStatus}
           </button>
         )}
+        {order.status !== ORDER_STATUS.READY &&
+          order.status !== ORDER_STATUS.SERVED && (
+            <button
+              onClick={() => onCancelOrder(order)}
+              disabled={order.status === ORDER_STATUS.READY}
+              className={`mt-3 flex w-full items-center justify-center gap-3 rounded-xl px-5 py-3.5 text-base font-semibold transition-all duration-300 ${
+                order.status === ORDER_STATUS.READY
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+                  : order.status === ORDER_STATUS.PREPARING
+                  ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 hover:shadow-lg hover:scale-105 active:scale-95 shadow-md border border-amber-400/20"
+                  : "bg-gradient-to-r from-red-500 to-rose-500 text-white hover:from-red-600 hover:to-rose-600 hover:shadow-lg hover:scale-105 active:scale-95 shadow-md border border-red-400/20"
+              }`}
+            >
+              <Trash2 size={18} className="flex-shrink-0" />
+              <span>
+                {order.status === ORDER_STATUS.PREPARING
+                  ? "Request Cancel"
+                  : "Cancel Order"}
+              </span>
+            </button>
+          )}
       </div>
     </>
   );

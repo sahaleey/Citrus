@@ -23,3 +23,36 @@ body {
   -moz-osx-smoothing: grayscale;
   line-height: 1.6; /* Improve text spacing */
 }
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.modern-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #3a9c6c #f8fafc;
+}
+
+.modern-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modern-scrollbar::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 10px;
+}
+
+.modern-scrollbar::-webkit-scrollbar-thumb {
+  background: #3a9c6c;
+  border-radius: 10px;
+  border: 1px solid #f8fafc;
+}
+
+.modern-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #2d7a58;
+}

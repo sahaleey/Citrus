@@ -11,7 +11,7 @@ dayjs.extend(relativeTime);
 const API_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
-// Status badge helper
+// Helper to color the order status badges
 const getStatusBadge = (status) => {
   switch (status) {
     case "Pending":
@@ -36,20 +36,20 @@ const OrderHistory = ({ guestId, tableId, onOrdersCleared }) => {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const intervalRef = useRef(null);
 
-  // Fetch orders for this guest
+  // Fetch all guest orders
   const fetchMyOrders = async () => {
     if (!guestId || !tableId) return setLoading(false);
 
-    if (isInitialLoad) setLoading(true); // Only show loading on first fetch
+    if (isInitialLoad) setLoading(true);
     setError(null);
 
     try {
       const { data } = await axios.get(
         `${API_URL}/orders/my-orders?guestId=${guestId}&tableId=${tableId}`
       );
-      if (data.success) {
-        setOrders(data.data);
-      } else throw new Error(data.message || "Failed to fetch orders.");
+
+      if (data.success) setOrders(data.data);
+      else throw new Error(data.message || "Failed to fetch orders.");
     } catch (err) {
       console.error("Failed to fetch guest orders:", err);
       setError(
@@ -58,122 +58,153 @@ const OrderHistory = ({ guestId, tableId, onOrdersCleared }) => {
       toast.error("Could not fetch your order history.");
     } finally {
       setLoading(false);
-      setIsInitialLoad(false); // After first load, don't show loading spinner
+      setIsInitialLoad(false);
     }
   };
 
-  // Download bill & remove this guest's order
+  // Bill download and order removal
   const handleDownloadBill = async (order) => {
     if (loading) return;
-
-    // Pause interval while processing
     clearInterval(intervalRef.current);
 
     try {
       generateBillPDF([order]);
-
-      // Delete order from backend first
       await axios.delete(`${API_URL}/orders/${order._id}`);
-
-      // Remove from state
       setOrders((prev) => prev.filter((o) => o._id !== order._id));
 
       toast.success("Bill downloaded and order cleared!");
-
       if (orders.length === 1) onOrdersCleared?.();
     } catch (err) {
       console.error("Failed to clear order:", err);
       toast.error("Failed to clear order. Please try again.");
     } finally {
-      // Resume interval
       intervalRef.current = setInterval(fetchMyOrders, 5000);
     }
   };
 
+  const handleCancelOrder = async (order) => {
+    try {
+      await axios.patch(`${API_URL}/orders/${order._id}/status`, {
+        status: "Cancelled",
+      });
+      toast.success("Order cancelled successfully!");
+      // update it in the UI immediately
+      setOrders((prev) =>
+        prev.map((o) =>
+          o._id === order._id ? { ...o, status: "Cancelled" } : o
+        )
+      );
+    } catch (err) {
+      console.error("Cancel failed:", err);
+      toast.error("Failed to cancel order.");
+    }
+  };
+
+  const handleAcknowledgeCancel = async (orderId) => {
+    try {
+      await axios.delete(`${API_URL}/orders/${orderId}`);
+      setOrders((prev) => prev.filter((o) => o._id !== orderId));
+      toast.success("Order removed from history.");
+    } catch (err) {
+      console.error("Failed to remove order:", err);
+      toast.error("Couldn't remove order from history.");
+    }
+  };
+
+  // Fetch orders every 5 seconds
   useEffect(() => {
     fetchMyOrders();
     intervalRef.current = setInterval(fetchMyOrders, 5000);
     return () => clearInterval(intervalRef.current);
   }, [guestId, tableId]);
 
+  // --- UI ---
   if (loading)
     return (
-      <div className="mt-6 rounded-lg bg-[var(--surface-color)] p-5 text-center shadow-lg ring-1 ring-black/5">
-        <p className="text-sm text-[var(--text-color-secondary)]">
-          Loading order history...
-        </p>
+      <div className="p-4 text-center text-[var(--text-color-secondary)]">
+        <p>Loading your order history...</p>
       </div>
     );
 
   if (error)
     return (
-      <div className="mt-6 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-red-300 bg-red-50 p-5 text-center text-red-700">
+      <div className="flex flex-col items-center p-4 text-center bg-red-50 text-red-700 rounded-lg border border-red-200">
         <AlertTriangle size={24} className="mb-2" />
-        <h3 className="font-semibold">Failed to Load Orders</h3>
+        <p className="font-semibold mb-2">Failed to load orders</p>
         <button
           onClick={fetchMyOrders}
-          className="mt-2 rounded-md bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700"
+          className="flex items-center gap-1 rounded-md bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700"
         >
-          <RefreshCw size={14} className="inline-block mr-1" />
-          Try Again
+          <RefreshCw size={14} /> Try Again
         </button>
       </div>
     );
 
   if (orders.length === 0)
     return (
-      <div className="mt-6 rounded-lg bg-[var(--surface-color)] p-5 text-center shadow-lg ring-1 ring-black/5">
+      <div className="p-5 text-center text-[var(--text-color-secondary)]">
         <Archive
           size={24}
-          className="mx-auto text-[var(--text-color-secondary)] mb-2"
+          className="mx-auto mb-2 text-[var(--text-color-secondary)]"
         />
-        <p className="text-sm font-semibold">No Past Orders</p>
-        <p className="text-xs text-[var(--text-color-secondary)]">
-          Your placed orders will appear here.
-        </p>
+        <p className="font-semibold">No Past Orders</p>
+        <p className="text-xs">Your placed orders will appear here.</p>
       </div>
     );
 
   return (
-    <div className="mt-6 rounded-lg bg-[var(--surface-color)] p-5 shadow-lg ring-1 ring-black/5">
-      <h3 className="text-xl font-bold mb-4">Your Order History</h3>
+    <div className="space-y-4">
+      {orders.map((order) => (
+        <div
+          key={order._id}
+          className="rounded-lg border border-[var(--border-color)] p-4 bg-[var(--surface-color)] shadow-sm"
+        >
+          <div className="flex justify-between items-center mb-2">
+            <span
+              className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusBadge(
+                order.status
+              )}`}
+            >
+              {order.status}
+            </span>
+            <span className="text-sm font-bold text-[var(--primary-color-dark)]">
+              ₹{order.totalPrice.toFixed(2)}
+            </span>
+          </div>
 
-      <ul className="space-y-4 max-h-[40vh] overflow-y-auto">
-        {orders.map((order) => (
-          <li
-            key={order._id}
-            className="rounded-md border border-[var(--border-color)] p-3"
-          >
-            <div className="flex justify-between items-center">
-              <span
-                className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusBadge(
-                  order.status
-                )}`}
+          <div className="flex justify-between text-xs text-[var(--text-color-secondary)]">
+            <span>{dayjs(order.createdAt).fromNow()}</span>
+
+            {order.status === "Served" && (
+              <button
+                onClick={() => handleDownloadBill(order)}
+                className="flex items-center gap-1 rounded-md bg-gray-200 px-2 py-1 text-xs font-medium text-gray-800 hover:bg-gray-300"
               >
-                {order.status}
-              </span>
-              <span className="text-sm font-bold text-[var(--primary-color-dark)]">
-                ₹{order.totalPrice.toFixed(2)}
-              </span>
-            </div>
+                <Download size={12} />
+                Bill
+              </button>
+            )}
 
-            <div className="flex justify-between items-center mt-2 text-xs text-[var(--text-color-secondary)]">
-              <span>{dayjs(order.createdAt).fromNow()}</span>
+            {["Pending", "Preparing"].includes(order.status) && (
+              <button
+                onClick={() => handleCancelOrder(order)}
+                className="flex items-center gap-1 rounded-md bg-red-100 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-200"
+              >
+                Cancel
+              </button>
+            )}
 
-              {order.status === "Served" && (
-                <button
-                  onClick={() => handleDownloadBill(order)}
-                  className="flex items-center gap-1 rounded-md bg-gray-200 px-2 py-1 text-xs font-medium text-gray-800 hover:bg-gray-300"
-                  title="Download Bill & Clear Orders"
-                >
-                  <Download size={12} />
-                  Bill
-                </button>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
+            {order.status === "Cancelled" && (
+              <button
+                onClick={() => handleAcknowledgeCancel(order._id)}
+                className="flex items-center gap-1 rounded-md bg-gray-200 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-300"
+              >
+                OK
+              </button>
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   );
 };

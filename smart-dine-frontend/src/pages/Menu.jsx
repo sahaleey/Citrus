@@ -5,6 +5,7 @@ import { toast } from "react-hot-toast";
 import { io } from "socket.io-client";
 import axios from "axios";
 import { getGuestId, setTableId as saveTableId } from "../utils/guest";
+import OrderHistoryDrawer from "../components/OrderHistoryDrawer";
 
 import FeaturedSlider from "../components/FeaturedSlider";
 import MenuItemCard from "../components/MenuItemCard";
@@ -13,19 +14,16 @@ import Spinner from "../components/Spinner";
 import FoodDetailModal from "../components/FoodDetailModal";
 import OrderHistory from "../components/OrderHistory";
 import BillModal from "../components/BillModel";
-import { Search, AlertTriangle, XCircle } from "lucide-react";
+import { Search, AlertTriangle, XCircle, ShoppingCart, X } from "lucide-react";
 
-// API & Socket config
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
-
 const api = axios.create({ baseURL: API_BASE });
 
-const Menu = ({ cart, addToCart, removeFromCart, clearCart }) => {
+const Menu = ({ cart = [], addToCart, removeFromCart, clearCart }) => {
   const [foods, setFoods] = useState([]);
   const [categories, setCategories] = useState(["All"]);
-  const [typeFilter, setTypeFilter] = useState("All"); // Veg / Non-Veg / All
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFood, setSelectedFood] = useState(null);
@@ -35,13 +33,11 @@ const Menu = ({ cart, addToCart, removeFromCart, clearCart }) => {
   const [error, setError] = useState(null);
   const [tableId, setTableId] = useState("");
   const [guestId, setGuestId] = useState("");
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const socketRef = useRef(null);
-
-  // Order placement UI state + double-submit guard
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const isSubmitting = useRef(false);
 
-  // --- Table + Guest setup ---
   useEffect(() => {
     const table = searchParams.get("table");
     if (!table) {
@@ -58,30 +54,26 @@ const Menu = ({ cart, addToCart, removeFromCart, clearCart }) => {
     setGuestId(getGuestId());
   }, [searchParams]);
 
-  // --- Fetch menu ---
   const fetchFoods = async () => {
     setIsLoading(true);
     setError(null);
     try {
       const res = await api.get("/foods");
-      // accommodate different shapes: {data: [...]} or [...]
       const foodsArray = Array.isArray(res.data)
         ? res.data
         : Array.isArray(res.data?.data)
         ? res.data.data
         : res.data?.foods ?? [];
-
       if (!Array.isArray(foodsArray)) throw new Error("Invalid menu format.");
       setFoods(foodsArray);
 
-      // derive categories (use original casing)
+      // build unique category list
       const cats = [
         "All",
-        ...new Set(foodsArray.map((f) => f.type).filter(Boolean)),
+        ...new Set(foodsArray.map((f) => f.category).filter(Boolean)),
       ];
       setCategories(cats);
     } catch (err) {
-      console.error("Failed to fetch menu:", err);
       const msg =
         err.response?.data?.message || err.message || "Could not load menu.";
       setError(msg);
@@ -90,33 +82,17 @@ const Menu = ({ cart, addToCart, removeFromCart, clearCart }) => {
       setIsLoading(false);
     }
   };
-
   useEffect(() => {
     fetchFoods();
   }, []);
 
-  // --- Socket setup for live notifications ---
   useEffect(() => {
-    if (!tableId || !guestId) {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
-      return;
-    }
-
-    if (!socketRef.current) {
+    if (!tableId || !guestId) return;
+    if (!socketRef.current)
       socketRef.current = io(SOCKET_URL, { autoConnect: true });
-    } else if (!socketRef.current.connected) {
-      socketRef.current.connect();
-    }
     const socket = socketRef.current;
-
     socket.emit("joinTable", tableId);
-    console.log(`[socket] joinTable ${tableId}`);
-
     const onOrderStatusUpdate = (updatedOrder) => {
-      console.log("[socket] orderStatusUpdate", updatedOrder);
       if (
         updatedOrder.guestId === guestId &&
         updatedOrder.tableId === tableId
@@ -127,152 +103,76 @@ const Menu = ({ cart, addToCart, removeFromCart, clearCart }) => {
         }
       }
     };
-
     socket.on("orderStatusUpdate", onOrderStatusUpdate);
-
-    return () => {
-      socket.off("orderStatusUpdate", onOrderStatusUpdate);
-      // we do not forcibly disconnect here — keep connection for other tables/apps unless explicitly needed
-      console.log(`[socket] leaveTable ${tableId}`);
-    };
+    return () => socket.off("orderStatusUpdate", onOrderStatusUpdate);
   }, [tableId, guestId]);
 
-  // --- Add to cart wrapper (use prop) ---
   const handleAddToCart = (food) => {
-    // Resolve id
     const id = food._id || food.id;
-    if (!id) {
-      console.error("food missing id", food);
-      toast.error("Cannot add item — invalid data.");
-      return;
+    if (!id) return toast.error("Cannot add item — invalid data.");
+    if (typeof addToCart === "function") {
+      addToCart({
+        foodId: id,
+        name: food.name,
+        price: Number(food.price) || 0,
+        quantity: 1,
+      });
     }
-    // ensure we pass a normalized item into addToCart
-    addToCart({
-      foodId: id,
-      name: food.name,
-      price: Number(food.price) || 0,
-      quantity: 1,
-    });
     toast.success(`${food.name} added to cart!`, { icon: "🛒" });
   };
 
-  // --- Build filters and filteredFoods ---
   const filteredFoods = useMemo(() => {
     const search = (searchTerm || "").trim().toLowerCase();
     return foods.filter((f) => {
       const matchesCategory =
-        selectedCategory === "All" || (f.type && f.type === selectedCategory);
-      const matchesType =
-        typeFilter === "All" || (f.category && f.category === typeFilter);
+        selectedCategory === "All" ||
+        (f.category && f.category === selectedCategory);
       const matchesSearch =
         !search || (f.name && f.name.toLowerCase().includes(search));
-      return matchesCategory && matchesType && matchesSearch;
+      return matchesCategory && matchesSearch;
     });
-  }, [foods, selectedCategory, typeFilter, searchTerm]);
+  }, [foods, selectedCategory, searchTerm]);
 
-  // --- Place order (centralized) ---
   const handlePlaceOrderRequest = async () => {
-    if (!tableId) {
-      toast.error("Invalid table ID. Scan QR.", { icon: "🚫" });
+    if (!tableId || !guestId || !cart.length) {
+      toast.error("Missing required order info.", { icon: "🚫" });
       return;
     }
-    if (!guestId) {
-      toast.error("Guest ID missing.", { icon: "🚫" });
-      return;
-    }
-    if (!Array.isArray(cart) || cart.length === 0) {
-      toast.error("Cart is empty!", { icon: "🛒" });
-      return;
-    }
-
-    if (isSubmitting.current) {
-      console.log("Submission already in progress, ignoring duplicate click.");
-      return;
-    }
-
-    // Ensure every cart item has food id
+    if (isSubmitting.current) return;
     const preparedItems = cart
-      .map((it) => {
-        const id = it.foodId || it._id || it.id;
-        if (!id) return null;
-        return {
-          food: id,
-          name: it.name,
-          price: Number(it.price) || 0,
-          quantity: Number(it.quantity) || 1,
-        };
-      })
-      .filter(Boolean);
-
-    if (preparedItems.length !== cart.length) {
-      toast.error("One or more cart items are invalid. Please re-add items.");
-      console.error("Invalid cart items (missing id):", cart);
+      .map((it) => ({
+        food: it.foodId || it._id || it.id,
+        name: it.name,
+        price: Number(it.price) || 0,
+        quantity: Number(it.quantity) || 1,
+      }))
+      .filter((i) => i.food);
+    if (!preparedItems.length) {
+      toast.error("Invalid cart items. Try re-adding.");
       return;
     }
-
     const payload = {
       tableId,
       guestId,
       totalPrice: preparedItems.reduce((s, i) => s + i.price * i.quantity, 0),
       items: preparedItems,
     };
-
     isSubmitting.current = true;
     setIsPlacingOrder(true);
-
     try {
       const res = await api.post("/orders", payload);
-      const data = res.data;
-
-      if (data && data.success) {
+      if (res.data?.success) {
         toast.success("Order placed successfully! 🍽️");
-        clearCart();
-      } else {
-        const msg = data?.message || "Failed to place order.";
-        toast.error(msg);
-        console.error("Order failed response:", data);
-      }
+        if (typeof clearCart === "function") clearCart();
+        setIsCartOpen(false);
+      } else toast.error(res.data?.message || "Order failed");
     } catch (err) {
-      const msg = err.response?.data?.message || err.message || "Order failed";
-      toast.error(msg);
-      console.error("Order error:", err.response?.data ?? err);
+      toast.error(err.response?.data?.message || err.message || "Order failed");
     } finally {
       isSubmitting.current = false;
       setIsPlacingOrder(false);
     }
   };
-
-  // --- Render helpers ---
-  const CategoryTabs = () => (
-    <div className="mb-4 flex flex-wrap gap-2">
-      {categories.map((cat) => (
-        <button
-          key={cat}
-          onClick={() => setSelectedCategory(cat)}
-          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all capitalize ${
-            selectedCategory === cat
-              ? "bg-[var(--primary-color)] text-white shadow-md"
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-          }`}
-        >
-          {cat}
-        </button>
-      ))}
-      {/* type filter */}
-      <div className="ml-2 flex items-center gap-2">
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          className="rounded-md border px-2 py-1 text-sm"
-        >
-          <option value="All">All Types</option>
-          <option value="Veg">Veg</option>
-          <option value="Non-Veg">Non-Veg</option>
-          <option value="Vegan">Vegan</option>
-        </select>
-      </div>
-    </div>
-  );
 
   return (
     <>
@@ -281,7 +181,6 @@ const Menu = ({ cart, addToCart, removeFromCart, clearCart }) => {
         onClose={() => setSelectedFood(null)}
         onAddToCart={() => selectedFood && handleAddToCart(selectedFood)}
       />
-
       {selectedBill && (
         <BillModal order={selectedBill} onClose={() => setSelectedBill(null)} />
       )}
@@ -293,6 +192,7 @@ const Menu = ({ cart, addToCart, removeFromCart, clearCart }) => {
               <FeaturedSlider items={foods} onItemClick={setSelectedFood} />
             )}
 
+            {/* search bar */}
             <div className="my-6">
               <div className="relative">
                 <input
@@ -309,16 +209,30 @@ const Menu = ({ cart, addToCart, removeFromCart, clearCart }) => {
               </div>
             </div>
 
-            <CategoryTabs />
+            {/* category tabs */}
+            <div className="flex overflow-x-auto gap-3 mb-6 pb-2 no-scrollbar">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-5 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                    selectedCategory === cat
+                      ? "bg-[#3a9c6c] text-white shadow-md"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
 
+            {/* menu list */}
             <section>
-              {isLoading && (
+              {isLoading ? (
                 <div className="flex h-64 items-center justify-center">
                   <Spinner text="Loading menu..." />
                 </div>
-              )}
-
-              {error && (
+              ) : error ? (
                 <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-red-300 bg-red-50 p-8 text-center text-red-700">
                   <AlertTriangle size={32} className="mb-2" />
                   <h3 className="text-lg font-semibold">Failed to load menu</h3>
@@ -330,9 +244,7 @@ const Menu = ({ cart, addToCart, removeFromCart, clearCart }) => {
                     Try Again
                   </button>
                 </div>
-              )}
-
-              {!isLoading && !error && (
+              ) : (
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                   {filteredFoods.length > 0 ? (
                     filteredFoods.map((food) => (
@@ -359,7 +271,8 @@ const Menu = ({ cart, addToCart, removeFromCart, clearCart }) => {
             </section>
           </div>
 
-          <div className="lg:col-span-1">
+          {/* desktop cart sidebar (unchanged) */}
+          <div className="hidden lg:block lg:col-span-1">
             <div className="sticky top-24 flex flex-col gap-6">
               <Cart
                 cart={cart}
@@ -370,7 +283,6 @@ const Menu = ({ cart, addToCart, removeFromCart, clearCart }) => {
                 onRequestPlaceOrder={handlePlaceOrderRequest}
                 isPlacingOrder={isPlacingOrder}
               />
-
               {guestId && tableId && (
                 <OrderHistory guestId={guestId} tableId={tableId} />
               )}
@@ -378,6 +290,78 @@ const Menu = ({ cart, addToCart, removeFromCart, clearCart }) => {
           </div>
         </div>
       </div>
+
+      {/* floating mobile cart and drawer (unchanged) */}
+      {Array.isArray(cart) && cart.length > 0 && (
+        <button
+          onClick={() => setIsCartOpen(true)}
+          className="lg:hidden fixed bottom-6 right-6 z-[9999] bg-[var(--primary-color)] text-white p-4 rounded-full shadow-lg hover:scale-105 transition-transform"
+        >
+          <ShoppingCart size={24} />
+          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+            {cart.length}
+          </span>
+        </button>
+      )}
+
+      {isCartOpen && (
+        <div className="fixed inset-0 z-[9998] flex items-end lg:hidden">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300"
+            onClick={() => setIsCartOpen(false)}
+          />
+          <div
+            className="relative w-full max-h-[85vh] bg-white rounded-t-3xl shadow-2xl transform transition-transform duration-500 ease-out animate-slide-up border border-gray-100"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+            </div>
+            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-[#3a9c6c] rounded-xl">
+                  <ShoppingCart size={20} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Your Cart</h2>
+                  <p className="text-sm text-gray-500">
+                    {cart?.length || 0} items
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsCartOpen(false)}
+                className="p-2 hover:bg-gray-100 rounded-xl transition-colors duration-200 group"
+              >
+                <X
+                  size={20}
+                  className="text-gray-500 group-hover:text-gray-700"
+                />
+              </button>
+            </div>
+            <div
+              className="p-6 overflow-y-auto modern-scrollbar"
+              style={{ maxHeight: "calc(85vh - 140px)" }}
+            >
+              <Cart
+                cart={cart}
+                onRemoveItem={removeFromCart}
+                onClearCart={clearCart}
+                tableId={tableId}
+                guestId={guestId}
+                onRequestPlaceOrder={handlePlaceOrderRequest}
+                isPlacingOrder={isPlacingOrder}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <OrderHistoryDrawer
+        guestId={guestId}
+        tableId={tableId}
+        onOrdersCleared={() => setIsCartOpen(false)}
+      />
     </>
   );
 };
